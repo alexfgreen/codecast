@@ -64,6 +64,7 @@ describe("settings local cache", () => {
     expect(modal).not.toContain("<Suspense");
     const layout = readFileSync(join(root, "components/DashboardLayout.tsx"), "utf8");
     expect(layout).not.toContain("{s.settingsModalSection && (");
-    expect(layout).toContain("useSyncSettings();");
+    const feeders = readFileSync(join(root, "components/DashboardSyncEffects.tsx"), "utf8");
+    expect(feeders).toContain("useSyncSettings();");
   });
 });

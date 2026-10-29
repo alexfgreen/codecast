@@ -7,6 +7,51 @@ export function isInboxSessionView(pathname?: string | null, source?: string | n
 }
 
 /**
+ * Codecast Lite's addresses (src/App.tsx): its home at /lite, two pages of its
+ * own (/lite/needs-you, /lite/team), and one session at /lite/<id>. Lite is a
+ * shell of its own outside the tab shell, so none of these is an inbox route
+ * or a conversation page to the classic rail: only presence (which session
+ * this window shows) and Lite's own navigation read them.
+ */
+export const LITE_ROOT = "/lite";
+const LITE_PAGES = new Set(["needs-you", "team"]);
+
+/** The session /lite/<id> opens, or null on Lite's other pages and off Lite. */
+export function liteSessionIdFromPath(pathname?: string | null): string | null {
+  const segment = pathname?.split(/[?#]/)[0].match(/^\/lite\/([^/]+)\/?$/)?.[1];
+  if (!segment || LITE_PAGES.has(segment)) return null;
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return null;
+  }
+}
+
+/** The Lite address of one session: what /conversation/<id> is to the classic shell. */
+export function liteSessionPath(id: string): string {
+  return `${LITE_ROOT}/${encodeURIComponent(id)}`;
+}
+
+/**
+ * Where an address a reused component pushes leads from inside Lite. A
+ * conversation page (its diff included) and an inbox selection (/inbox?s=<id>)
+ * open that session in Lite, their query and hash riding along (a message deep
+ * link, a share token); the bare inbox is Lite's home. Every other address is
+ * a page Lite does not have, and leads to the classic one unchanged.
+ */
+export function liteNavigationTarget(path: string): string {
+  if (!path.startsWith("/") || path.startsWith("//")) return path;
+  const url = new URL(path, "https://codecast.local");
+  const conversation = url.pathname.match(/^\/conversation\/([^/]+)(?:\/diff)?\/?$/)?.[1];
+  if (conversation) return `${LITE_ROOT}/${conversation}${url.search}${url.hash}`;
+  if (!isInboxRoute(url.pathname)) return path;
+  const session = url.searchParams.get("s");
+  url.searchParams.delete("s");
+  const rest = url.searchParams.toString();
+  return `${session ? liteSessionPath(session) : LITE_ROOT}${rest ? `?${rest}` : ""}${url.hash}`;
+}
+
+/**
  * WHICH pointer the session rail highlights on a surface. Three-way, and the
  * split is not "inbox vs everything else":
  *  - "current" — the inbox: it highlights the attended conversation,

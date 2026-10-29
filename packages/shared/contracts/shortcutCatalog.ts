@@ -168,7 +168,12 @@ export type ShortcutAction =
   | 'evalsSim.first'
   | 'evalsSim.last'
   | 'evalsSim.play'
-  | 'line.settings';
+  | 'line.settings'
+  | 'lite.toggleSidebar'
+  | 'lite.toggleRightPanel'
+  | 'lite.needsYou'
+  | 'lite.team'
+  | 'lite.newSession';
 
 // The same shape as @platform/keys' ShortcutDef, written out so this package
 // needs no dependency on it.
@@ -188,6 +193,19 @@ export interface ShortcutDef<A extends string = ShortcutAction> {
 }
 
 export const SHORTCUTS: ShortcutDef[] = [
+  // Codecast Lite (app/lite), live only while its shell holds the 'lite'
+  // context. Each verb takes the chord its classic twin already taught the
+  // hand: the left and right panels are Ctrl+[ and Ctrl+], a new session is
+  // Ctrl+N (Cmd+N, T and W never reach a page in Chrome), Needs you is
+  // Ctrl+I (jump to what needs input), the team is the people wall's ⌘⇧P.
+  // FIRST in the list on purpose: the dispatcher takes the first def whose
+  // context is live and whose action has a handler, so these win inside Lite
+  // and are skipped everywhere else, where the context is off.
+  { key: 'ctrl+[', action: 'lite.toggleSidebar', when: 'lite', skipInputCheck: true, description: 'Toggle the sidebar' },
+  { key: 'ctrl+]', action: 'lite.toggleRightPanel', when: 'lite', skipInputCheck: true, description: 'Toggle the right panel' },
+  { key: 'ctrl+n', action: 'lite.newSession', when: 'lite', skipInputCheck: true, description: 'New session' },
+  { key: 'ctrl+i', action: 'lite.needsYou', when: 'lite', skipInputCheck: true, description: 'Needs you' },
+  { key: 'meta+shift+p', action: 'lite.team', when: 'lite', skipInputCheck: true, description: 'The team' },
   { key: 'ctrl+j', action: 'session.next', skipInputCheck: true, description: 'Next session' },
   { key: 'ctrl+k', action: 'session.prev', skipInputCheck: true, description: 'Previous session' },
   { key: 'ctrl+i', action: 'session.jumpIdle', skipInputCheck: true, description: 'Jump to top needs-input session' },
