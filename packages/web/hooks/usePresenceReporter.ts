@@ -1,12 +1,13 @@
 import { useRef } from "react";
 import { useConvexAuth, useMutation } from "convex/react";
-import { usePathname } from "next/navigation";
+import { useLocation } from "react-router";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { INPUT_ACTIVE_MS } from "@codecast/convex/convex/presenceState";
 import { getIdleMs, installDesktopInputTracker, isElectron } from "../lib/desktop";
 import { isConvexId, mountedPathname, useInboxStore } from "../store/inboxStore";
-import { sessionFocusKind } from "../lib/inboxRouting";
+import { liteSessionIdFromPath, sessionFocusKind } from "../lib/inboxRouting";
+import { isNonTabRoute } from "../lib/tabRoutes";
 
 import { useWatchEffect } from "./useWatchEffect";
 // Tell the server a human is at this desktop surface (pushRouter.reportPresence).
@@ -36,9 +37,15 @@ export type PresenceReport = {
  * The conversation on screen, as the store can see it, or null. Follows the
  * rail's own focus rule (sessionFocusKind): on the inbox it is the attended
  * conversation (a dismissed one being read, else the current one); on a
- * /conversation/<id> page it is the id in the path; everywhere else nothing
- * is open. Only a real Convex id is reported: an optimistic stub has no row
- * a teammate could open.
+ * /conversation/<id> page it is the id in the path; on Codecast Lite it is
+ * the session at /lite/<id>; everywhere else nothing is open. Only a real
+ * Convex id is reported: an optimistic stub has no row a teammate could open.
+ *
+ * `fallbackPathname` is the window's real route. Inside the tab shell the
+ * active tab's path decides, since a tab navigation rewrites the URL without
+ * moving the router. On a route outside the tab shell (Lite, settings, the
+ * marketing pages) the real route decides: the classic tabs still hydrate
+ * there, and their active tab says nothing about what this window shows.
  */
 export function viewedConversationId(
   state: {
@@ -51,10 +58,14 @@ export function viewedConversationId(
   },
   fallbackPathname?: string | null,
 ): string | null {
-  const pathname = state.activeTabId ? mountedPathname(state) : fallbackPathname ?? undefined;
-  const kind = sessionFocusKind(pathname, state.currentConversation?.source);
+  const inTabShell = !fallbackPathname || !isNonTabRoute(fallbackPathname);
+  const pathname = state.activeTabId && inTabShell ? mountedPathname(state) : fallbackPathname ?? undefined;
+  const liteKey = liteSessionIdFromPath(pathname);
+  const kind = liteKey ? null : sessionFocusKind(pathname, state.currentConversation?.source);
   let id: string | undefined;
-  if (kind === "current") {
+  if (liteKey) {
+    id = state.sessions[liteKey]?._id ?? liteKey;
+  } else if (kind === "current") {
     const key = state.viewingDismissedId ?? state.currentSessionId;
     id = key ? state.sessions[key]?._id ?? key : undefined;
   } else if (kind === "url") {
@@ -172,8 +183,10 @@ export function usePresenceReporter() {
   // send anonymous write traffic at all).
   const { isAuthenticated } = useConvexAuth();
   // Outside a tab shell the route is the real location, which no store write
-  // announces; the pathname makes a plain navigation recompute the view.
-  const pathname = usePathname();
+  // announces; the pathname makes a plain navigation recompute the view. The
+  // router's own location, not the compat usePathname: that one answers with
+  // the classic active tab's path on every route, Lite's included.
+  const pathname = useLocation().pathname;
   const viewing = useInboxStore((s) => viewedConversationId(s, pathname));
   const viewingRef = useRef(viewing);
   viewingRef.current = viewing;

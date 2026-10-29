@@ -78,6 +78,7 @@ export type RouteLayout =
   | "callPanel"
   | "settings"
   | "welcome"
+  | "lite"
   | "redirect";
 
 // -- Lazy component refs — import targets copied verbatim from App.tsx / TabContent.tsx so
@@ -258,6 +259,12 @@ const PrView = lazy(() => import("@/app/pr/[owner]/[repo]/[number]/page"));
 
 // Palette
 const Palette = lazy(() => import("@/app/palette/page"));
+
+// Codecast Lite (its pathless LiteShell layout route is not a path of its own)
+const LiteHome = lazy(() => import("@/app/lite/page"));
+const LiteSession = lazy(() => import("@/app/lite/[sessionId]/page"));
+const LiteNeedsYou = lazy(() => import("@/app/lite/needs-you/page"));
+const LiteTeam = lazy(() => import("@/app/lite/team/page"));
 
 // People window
 const People = lazy(() => import("@/app/people/page"));
@@ -513,6 +520,17 @@ export const ROUTES: RouteEntry[] = [
 
   // -- The people window (its own OS window / browser popup, no tab shell) --
   { path: "people", component: cast(People), layout: "people" },
+
+  // -- Codecast Lite: its own shell beside the classic one (LiteShell, no tab
+  //    shell, no DashboardLayout). Its own layout value rather than
+  //    "standalone", for the call panel's reason: standalone would force
+  //    "lite" into IN_SHELL_ROOT_SEGMENTS, the tab shell's set. lib/tabRoutes
+  //    lists /lite as a NON_TAB prefix, and lib/desktopHandoff keeps it in
+  //    the browser. --
+  { path: "lite", component: cast(LiteHome), layout: "lite" },
+  { path: "lite/needs-you", component: cast(LiteNeedsYou), layout: "lite" },
+  { path: "lite/team", component: cast(LiteTeam), layout: "lite" },
+  { path: "lite/:sessionId", component: cast(LiteSession), layout: "lite" },
 
   // -- The call panel (a huddle in its own OS window, no tab shell) --
   //    Its own layout value rather than "standalone": the parity test asserts

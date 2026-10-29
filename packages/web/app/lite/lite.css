@@ -1,0 +1,843 @@
+/* Codecast Lite's visual system. Every rule is scoped under [data-lite] (the
+   shell root, and any surface Lite portals out of it: menus, drawers, the
+   palette), so nothing here reaches the classic UI. Borders and fills
+   separate things; shadows are for floating surfaces only. Motion is short
+   and finite: no list row runs an infinite animation (the typing budget,
+   scripts/typing-guard.sh). */
+
+[data-lite],
+.lt-drawer {
+  --lt-bg: #fcfcfd;
+  --lt-sidebar: #f6f6f7;
+  --lt-raised: #ffffff;
+  --lt-hover: rgba(0, 0, 0, 0.045);
+  --lt-active: #ffffff;
+  --lt-active-ring: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --lt-border: #e6e6e9;
+  --lt-text: #18181b;
+  --lt-text-2: #52525b;
+  /* Small meta text (ages, counts, labels): at least 4.5:1 on the sidebar
+     and the page in both themes. */
+  --lt-text-3: #6e6e77;
+  --lt-accent: #4f46e5;
+  --lt-working: #2563eb;
+  /* The status hues fill marks; a word in a status colour takes its -text
+     twin, dark enough to read at 11-12px (4.5:1). */
+  --lt-needs: #d97706;
+  --lt-needs-text: #b45309;
+  --lt-done: #059669;
+  --lt-done-text: #047857;
+  --lt-error: #dc2626;
+  --lt-agent: #7c3aed;
+  --lt-backdrop: rgba(9, 9, 11, 0.28);
+  --lt-shadow-float: 0 12px 32px -8px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.06);
+  --lt-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
+  --lt-sidebar-w: 264px;
+  --lt-topbar-h: 48px;
+  --lt-row-h: 32px;
+  --lt-right-w: 400px;
+  --lt-content-w: 46rem;
+
+  font-family: var(--lt-font);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--lt-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.dark [data-lite],
+.dark .lt-drawer {
+  --lt-bg: #0a0a0b;
+  --lt-sidebar: #0e0e10;
+  --lt-raised: #141416;
+  --lt-hover: rgba(255, 255, 255, 0.045);
+  --lt-active: rgba(255, 255, 255, 0.08);
+  --lt-active-ring: none;
+  --lt-border: rgba(255, 255, 255, 0.08);
+  --lt-text: #ededef;
+  --lt-text-2: #a3a3aa;
+  --lt-text-3: #85858d;
+  --lt-accent: #818cf8;
+  --lt-working: #60a5fa;
+  --lt-needs: #fbbf24;
+  --lt-needs-text: #fbbf24;
+  --lt-done: #34d399;
+  --lt-done-text: #34d399;
+  --lt-error: #f87171;
+  --lt-agent: #a78bfa;
+  --lt-backdrop: rgba(0, 0, 0, 0.55);
+  --lt-shadow-float: 0 16px 40px -8px rgba(0, 0, 0, 0.6);
+}
+
+[data-lite] .lt-mono {
+  font-family: var(--font-mono);
+}
+
+[data-lite] :focus-visible {
+  outline: 2px solid var(--lt-accent);
+  outline-offset: -2px;
+}
+
+/* The phone drawer (components/MobileDrawer) portals out of the shell; it
+   wears the sidebar's surface. Two classes, to outrank its own bg utility. */
+.cc-mobile-drawer.lt-drawer {
+  background: var(--lt-sidebar);
+  color: var(--lt-text);
+  border-color: var(--lt-border);
+}
+/* The right panel as a sheet: full screen on a phone, the docked panel's
+   width on a window too narrow to dock it. */
+.cc-mobile-drawer.lt-drawer[data-cc-mobile-drawer="right"] {
+  width: 100vw;
+  max-width: none;
+  background: var(--lt-bg);
+}
+@media (min-width: 768px) {
+  .cc-mobile-drawer.lt-drawer[data-cc-mobile-drawer="right"] {
+    width: var(--lt-right-w);
+    max-width: 100vw;
+  }
+}
+
+/* ── Frame ──────────────────────────────────────────────────────────────── */
+
+[data-lite].lt-shell {
+  display: flex;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--lt-bg);
+}
+
+[data-lite] .lt-sidebar {
+  display: flex;
+  flex-direction: column;
+  width: var(--lt-sidebar-w);
+  flex-shrink: 0;
+  min-height: 0;
+  background: var(--lt-sidebar);
+  border-right: 1px solid var(--lt-border);
+}
+
+/* Inside the phone drawer the sidebar is the drawer's whole body. */
+[data-lite].lt-drawer-body .lt-sidebar {
+  width: 100%;
+  height: 100%;
+  border-right: 0;
+}
+
+[data-lite] .lt-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+[data-lite] .lt-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--lt-topbar-h);
+  flex-shrink: 0;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--lt-border);
+  /* Controls never paint under a panel beside the column. */
+  overflow: hidden;
+}
+
+[data-lite] .lt-right {
+  display: flex;
+  flex-direction: column;
+  width: var(--lt-right-w);
+  flex-shrink: 0;
+  min-height: 0;
+  border-left: 1px solid var(--lt-border);
+  background: var(--lt-bg);
+}
+
+/* The slot shows only while a page draws into it (LiteRightPanel portals in
+   only while the panel is open). */
+[data-lite] .lt-right:empty {
+  display: none;
+}
+
+[data-lite] .lt-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+[data-lite] .lt-content {
+  width: 100%;
+  max-width: var(--lt-content-w);
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* ── Controls ───────────────────────────────────────────────────────────── */
+
+[data-lite] .lt-icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  color: var(--lt-text-2);
+  transition: background-color 120ms, color 120ms;
+}
+[data-lite] .lt-icon-btn:hover,
+[data-lite] .lt-icon-btn[data-state="open"],
+[data-lite] .lt-icon-btn[aria-pressed="true"] {
+  background: var(--lt-hover);
+  color: var(--lt-text);
+}
+[data-lite] .lt-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+[data-lite] .lt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-raised);
+  color: var(--lt-text-2);
+  font-size: 13px;
+  white-space: nowrap;
+  transition: background-color 120ms, color 120ms;
+}
+[data-lite] .lt-btn:hover {
+  color: var(--lt-text);
+  background: var(--lt-hover);
+}
+[data-lite] .lt-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* A field-shaped button: the sidebar's search, which opens the palette. */
+[data-lite] .lt-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 6px 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-raised);
+  color: var(--lt-text-3);
+  font-size: 13px;
+  transition: border-color 120ms, color 120ms;
+}
+[data-lite] .lt-search:hover {
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-search svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ── Sidebar rows ───────────────────────────────────────────────────────── */
+
+[data-lite] .lt-side-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 8px 8px;
+  flex-shrink: 0;
+}
+
+[data-lite] .lt-section-label {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 8px;
+  margin-top: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lt-text-3);
+}
+
+/* A row's frame. Relative so the hover actions sit over the time without
+   moving anything. */
+[data-lite] .lt-rowwrap {
+  position: relative;
+}
+
+[data-lite] .lt-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: var(--lt-row-h);
+  padding: 0 8px;
+  border-radius: 6px;
+  color: var(--lt-text-2);
+  text-align: left;
+  transition: background-color 100ms, color 100ms;
+}
+[data-lite] .lt-row:hover {
+  background: var(--lt-hover);
+}
+/* A row that needs the person never recedes. */
+[data-lite] .lt-row[data-attention] {
+  color: var(--lt-text);
+  font-weight: 500;
+}
+[data-lite] .lt-row[aria-current="page"] {
+  background: var(--lt-active);
+  box-shadow: var(--lt-active-ring);
+  color: var(--lt-text);
+}
+[data-lite] .lt-row-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A session row sits under its project's label. */
+[data-lite] .lt-row[data-nested] {
+  padding-left: 12px;
+}
+
+[data-lite] .lt-meta {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--lt-text-3);
+  font-variant-numeric: tabular-nums;
+}
+[data-lite] .lt-machine {
+  display: inline-block;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+/* A second name beside the title in a wide list (an ask's session). */
+[data-lite] .lt-detail {
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-lite] .lt-count {
+  flex-shrink: 0;
+  min-width: 18px;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: right;
+  color: var(--lt-text-3);
+  font-variant-numeric: tabular-nums;
+}
+[data-lite] .lt-count[data-attention] {
+  color: var(--lt-needs-text);
+}
+
+/* The time and the hover actions share one slot: the time fades out as the
+   actions fade in, so nothing on the row moves. A finger has no hover, so
+   there the time stays and the actions live in the session's own header. */
+[data-lite] .lt-time {
+  transition: opacity 100ms;
+}
+[data-lite] .lt-row-actions {
+  position: absolute;
+  top: 0;
+  right: 4px;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 100ms;
+}
+[data-lite] .lt-rowwrap:hover .lt-row-actions,
+[data-lite] .lt-rowwrap:focus-within .lt-row-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+[data-lite] .lt-rowwrap:hover .lt-time,
+[data-lite] .lt-rowwrap:focus-within .lt-time {
+  opacity: 0;
+}
+[data-lite] .lt-row-actions .lt-icon-btn {
+  width: 24px;
+  height: 24px;
+}
+[data-lite] .lt-row-actions .lt-icon-btn svg {
+  width: 14px;
+  height: 14px;
+}
+@media (pointer: coarse) {
+  [data-lite] .lt-row-actions {
+    display: none;
+  }
+  [data-lite] .lt-rowwrap:hover .lt-time,
+  [data-lite] .lt-rowwrap:focus-within .lt-time {
+    opacity: 1;
+  }
+}
+
+/* A project's label row: a button that opens and closes it. */
+[data-lite] .lt-project {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  color: var(--lt-text-2);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+}
+[data-lite] .lt-project:hover {
+  background: var(--lt-hover);
+  color: var(--lt-text);
+}
+[data-lite] .lt-project svg.lt-chevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--lt-text-3);
+  transition: transform 120ms;
+}
+[data-lite] .lt-project[aria-expanded="false"] svg.lt-chevron {
+  transform: rotate(-90deg);
+}
+
+[data-lite] .lt-more {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 28px;
+  padding: 0 8px 0 34px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-more:hover {
+  background: var(--lt-hover);
+  color: var(--lt-text-2);
+}
+
+[data-lite] .lt-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 8px;
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--lt-text-2);
+}
+
+[data-lite] .lt-side-foot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  height: 48px;
+  padding: 0 8px;
+  border-top: 1px solid var(--lt-border);
+}
+
+@media (max-width: 767px) {
+  [data-lite] {
+    --lt-row-h: 40px;
+  }
+  [data-lite] .lt-project,
+  [data-lite] .lt-more {
+    height: 36px;
+  }
+  [data-lite] .lt-icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* ── Status marks ───────────────────────────────────────────────────────── */
+
+[data-lite] .lt-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+/* Working: a ring with a gap, drawn still. A moving mark on every running
+   row would repaint the page each frame for as long as an agent runs. */
+[data-lite] .lt-mark[data-mark="working"]::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  border: 1.5px solid var(--lt-working);
+  border-right-color: transparent;
+  transform: rotate(45deg);
+}
+/* Needs you: an amber diamond. */
+[data-lite] .lt-mark[data-mark="needs"]::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 1.5px;
+  background: var(--lt-needs);
+  transform: rotate(45deg);
+}
+/* A teammate's session waiting on its owner: the same diamond, hollow. It
+   waits on them, not on the viewer, so it does not fill. */
+[data-lite] .lt-mark[data-mark="waiting"]::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 1.5px;
+  border: 1.5px solid var(--lt-needs);
+  transform: rotate(45deg);
+}
+/* Done, not yet read: an emerald check (the icon inside). */
+[data-lite] .lt-mark[data-mark="done"] {
+  color: var(--lt-done);
+}
+[data-lite] .lt-mark[data-mark="done"] svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2.5;
+}
+
+[data-lite] .lt-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  border: 1px solid var(--lt-border);
+  font-size: 12px;
+  color: var(--lt-text-2);
+  white-space: nowrap;
+}
+[data-lite] .lt-pill[data-mark="working"] {
+  color: var(--lt-working);
+}
+[data-lite] .lt-pill[data-mark="needs"] {
+  color: var(--lt-needs-text);
+}
+[data-lite] .lt-pill[data-mark="done"] {
+  color: var(--lt-done-text);
+}
+
+/* ── Faces ──────────────────────────────────────────────────────────────── */
+
+[data-lite] .lt-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: var(--lt-hover);
+  color: var(--lt-text-2);
+  font-size: 10px;
+  font-weight: 600;
+  object-fit: cover;
+}
+
+/* ── Floating surfaces: menus, the palette ──────────────────────────────── */
+
+[data-lite].lt-menu {
+  min-width: 220px;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-raised);
+  color: var(--lt-text);
+  box-shadow: var(--lt-shadow-float);
+}
+[data-lite] .lt-menu-label {
+  padding: 6px 8px 4px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--lt-text);
+  cursor: default;
+}
+[data-lite] .lt-menu-item[data-highlighted] {
+  background: var(--lt-hover);
+  color: var(--lt-text);
+}
+[data-lite] .lt-menu-sep {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--lt-border);
+}
+
+[data-lite].lt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+}
+[data-lite] .lt-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--lt-backdrop);
+}
+
+[data-lite] .lt-palette {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(640px, calc(100vw - 24px));
+  max-height: min(70vh, 520px);
+  margin: min(18vh, 140px) auto 0;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-raised);
+  box-shadow: var(--lt-shadow-float);
+}
+[data-lite] .lt-palette-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 14px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--lt-border);
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-palette-input svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+[data-lite] .lt-palette-input input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-size: 15px;
+  color: var(--lt-text);
+}
+[data-lite] .lt-palette-input input::placeholder {
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-palette [cmdk-list] {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  scrollbar-width: thin;
+}
+[data-lite] .lt-palette [cmdk-group-heading] {
+  padding: 8px 8px 4px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-palette [cmdk-item] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: var(--lt-text-2);
+  cursor: default;
+}
+[data-lite] .lt-palette [cmdk-item][data-selected="true"] {
+  background: var(--lt-hover);
+  color: var(--lt-text);
+}
+[data-lite] .lt-palette [cmdk-item] > svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-palette [cmdk-empty] {
+  padding: 24px 8px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-palette-foot {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 36px;
+  padding: 0 14px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--lt-border);
+  font-size: 12px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-palette-foot > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+@media (max-width: 639px) {
+  /* The overlay sits outside the shell's safe-area padding, so it keeps clear
+     of the status bar and the home indicator itself. */
+  [data-lite] .lt-palette {
+    margin-top: calc(env(safe-area-inset-top, 0px) + 12px);
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 24px);
+  }
+  [data-lite] .lt-palette-foot {
+    display: none;
+  }
+}
+
+/* ── Pages ──────────────────────────────────────────────────────────────── */
+
+[data-lite] .lt-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+}
+[data-lite] .lt-crumbs .lt-crumb-project {
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-crumbs .lt-crumb-title {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+[data-lite] .lt-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: min(16vh, 120px);
+  padding-bottom: 48px;
+}
+[data-lite] .lt-empty h1 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--lt-text);
+}
+[data-lite] .lt-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--lt-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--lt-raised);
+}
+[data-lite] .lt-list > * + * {
+  border-top: 1px solid var(--lt-border);
+}
+[data-lite] .lt-list .lt-row {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 0;
+}
+
+[data-lite] [data-lite-placeholder] {
+  padding: 24px 16px;
+  border: 1px dashed var(--lt-border);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--lt-text-3);
+  text-align: center;
+}
+
+[data-lite] .lt-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--lt-topbar-h);
+  flex-shrink: 0;
+  padding: 0 8px 0 14px;
+  border-bottom: 1px solid var(--lt-border);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* The shortcuts sheet (?): a column at the frame's right edge, over the page
+   on a phone. */
+[data-lite] .lt-keys {
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  flex-shrink: 0;
+  min-height: 0;
+  border-left: 1px solid var(--lt-border);
+  background: var(--lt-bg);
+}
+@media (max-width: 767px) {
+  [data-lite] .lt-keys {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    width: auto;
+    border-left: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+[data-lite] .lt-key-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--lt-row-h);
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--lt-text-2);
+  text-align: left;
+}
+[data-lite] .lt-key-row:hover {
+  background: var(--lt-hover);
+  color: var(--lt-text);
+}

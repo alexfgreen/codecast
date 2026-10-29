@@ -149,3 +149,14 @@ describe("desktop menu keys", () => {
     expect(desktopMenuKeys(overrides, live, true)).toEqual({ keys: { "nav.back": ["Command+Shift+B"] }, claimed: ["Command+,"] });
   });
 });
+
+describe("Codecast Lite's defs", () => {
+  test("each description is its own, so a classic twin still resolves by its name", () => {
+    for (const d of SHORTCUTS.filter((def) => def.when === "lite")) {
+      const twins = SHORTCUTS.filter((o) => o.action !== d.action && o.description.toLowerCase() === d.description.toLowerCase());
+      expect(twins.map((o) => o.action)).toEqual([]);
+    }
+    expect(resolveAction("new session")).toEqual({ ok: true, action: "session.compose" });
+    expect(resolveAction("the team")).toEqual({ ok: true, action: "people.wall" });
+  });
+});
