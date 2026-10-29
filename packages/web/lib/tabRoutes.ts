@@ -80,7 +80,10 @@ export const NON_TAB_EXACT = new Set([
 // the real router (components/LaneRedirect): a tab would intercept the click
 // and never run the redirect. A renamed page's old root (/goals) redirects
 // the same way.
-export const NON_TAB_PREFIXES: readonly string[] = ["/settings", "/auth", "/join", "/share", "/meet", "/blog", "/documentation", "/features", "/compare", "/a", "/r", "/slack/connect", WHISK_RETURN_PATH, ...LANE_ROOTS, ...Object.keys(RENAMED_PAGE_ROOTS)];
+// "/lite" is Codecast Lite, a whole shell of its own beside the tab shell: a
+// tab never holds one of its pages, and a push from inside it moves the real
+// router rather than rewriting the classic active tab.
+export const NON_TAB_PREFIXES: readonly string[] = ["/settings", "/auth", "/join", "/share", "/meet", "/blog", "/documentation", "/features", "/compare", "/a", "/r", "/slack/connect", "/lite", WHISK_RETURN_PATH, ...LANE_ROOTS, ...Object.keys(RENAMED_PAGE_ROOTS)];
 
 export function isNonTabRoute(path: string): boolean {
   const clean = path.split("?")[0].split("#")[0];
