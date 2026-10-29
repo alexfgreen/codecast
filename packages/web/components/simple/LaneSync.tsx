@@ -3,7 +3,7 @@
 // full app's window effects (call rings, chat toasts, mods), so onboarding
 // reads the same store and its writes (the mode choice, the first
 // conversation) go out the same way.
-import { DashboardSyncEffects } from "../DashboardLayout";
+import { DashboardSyncEffects } from "../DashboardSyncEffects";
 import { ErrorBoundary } from "../ErrorBoundary";
 
 export function LaneSync() {

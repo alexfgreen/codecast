@@ -179,6 +179,15 @@ const ShareCursors = lazy(() => import("@/app/share-cursors/page"));
 const Welcome = lazy(() => import("@/app/welcome/page"));
 const LaneRedirect = lazy(() => import("@/components/LaneRedirect"));
 
+// Codecast Lite: the calm, keyboard-first shell beside the classic one. Its
+// layout route owns auth, hydration, the feeders and the frame; the pages are
+// what sits in its middle column.
+const LiteShell = lazy(() => import("@/app/lite/LiteShell"));
+const LiteHome = lazy(() => import("@/app/lite/page"));
+const LiteSession = lazy(() => import("@/app/lite/[sessionId]/page"));
+const LiteNeedsYou = lazy(() => import("@/app/lite/needs-you/page"));
+const LiteTeam = lazy(() => import("@/app/lite/team/page"));
+
 const Settings = lazy(() => import("@/app/settings/page"));
 const SettingsCli = lazy(() => import("@/app/settings/cli/page"));
 const SettingsAgents = lazy(() => import("@/app/settings/agents/page"));
@@ -462,6 +471,17 @@ export function App() {
                 DashboardLayout — it is a whole window, not a page inside one.
                 MUST stay above ":username" or the profile catch-all eats it. */}
             <Route path="people" element={<E name="People"><People /></E>} />
+
+            {/* Codecast Lite: its own shell, no tab shell and no DashboardLayout
+                (lib/tabRoutes lists /lite as a NON_TAB prefix). The static
+                pages come before the session param, and the whole family MUST
+                stay above ":username" or the profile catch-all eats /lite. */}
+            <Route element={<E name="LiteShell"><LiteShell /></E>}>
+              <Route path="lite" element={<E name="Lite"><LiteHome /></E>} />
+              <Route path="lite/needs-you" element={<E name="LiteNeedsYou"><LiteNeedsYou /></E>} />
+              <Route path="lite/team" element={<E name="LiteTeam"><LiteTeam /></E>} />
+              <Route path="lite/:sessionId" element={<E name="LiteSession"><LiteSession /></E>} />
+            </Route>
 
             {/* /welcome is where someone new to the hosted assistant starts,
                 signed in or not (docs/architecture/hosted-assistant.md),

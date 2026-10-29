@@ -6,7 +6,7 @@ import { MOBILE_ROOT, WEB_ROOT, codeLines as codeLinesOf, walkSources } from "./
 // FEEDER PARITY GUARD (docs/architecture/sync-convergence.md C5).
 //
 // `useSyncCore(profile)` owns the full feeder mount set for the session
-// replica; web (DashboardLayout) and mobile (StoreSyncBridge) both mount IT,
+// replica; web (DashboardSyncEffects) and mobile (StoreSyncBridge) both mount IT,
 // never a hand-picked subset. Before this, mobile mounted two of five feeders,
 // so its replica computed counts from thinner data — the drift class the
 // parity rule ends. Three invariants, all source-level:
@@ -56,8 +56,8 @@ describe("useSyncCore owns the full feeder mount set", () => {
     expect(coreSrc.includes("useInboxDigestCompare();")).toBe(true);
   });
 
-  test("web DashboardLayout mounts useSyncCore, not a subset", () => {
-    const src = read(join(WEB_ROOT, "components", "DashboardLayout.tsx"));
+  test("web DashboardSyncEffects mounts useSyncCore, not a subset", () => {
+    const src = read(join(WEB_ROOT, "components", "DashboardSyncEffects.tsx"));
     expect(src.includes('useSyncCore("web")')).toBe(true);
     const code = codeLines(src).join("\n");
     for (const feeder of CORE_FEEDERS) {
