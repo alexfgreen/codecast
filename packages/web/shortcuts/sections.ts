@@ -19,4 +19,5 @@ export const HELP_SECTIONS: { when: string | undefined; label: string; accent: s
   { when: "review", label: "Review", accent: "bg-sol-violet" },
   { when: "desktop", label: "Desktop", accent: "bg-sol-cyan" },
   { when: "undoWalk", label: "Undo history peek", accent: "bg-sol-orange" },
+  { when: "lite", label: "Codecast Lite", accent: "bg-sol-green" },
 ];
