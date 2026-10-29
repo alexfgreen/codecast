@@ -126,6 +126,12 @@ describe("isHandoffEligiblePath", () => {
     expect(isHandoffEligiblePath("/palette")).toBe(false);
     expect(isHandoffEligiblePath("/api/x")).toBe(false);
   });
+
+  test("keeps Codecast Lite in the browser — it is the shell someone chose over the app", () => {
+    for (const p of ["/lite", "/lite/needs-you", "/lite/team", "/lite/jx7c89", "/lite/jx7c89?x=1"]) {
+      expect({ p, eligible: isHandoffEligiblePath(p) }).toEqual({ p, eligible: false });
+    }
+  });
 });
 
 describe("shouldAttemptHandoff", () => {

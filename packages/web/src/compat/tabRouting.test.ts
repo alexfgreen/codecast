@@ -34,6 +34,15 @@ describe("isNonTabRoute", () => {
     for (const p of ["/projects", "/goals"]) expect(isNonTabRoute(p)).toBe(false);
   });
 
+  // Codecast Lite is a shell of its own: the router moves it, a tab never
+  // holds one of its pages, and a push from inside it never rewrites the
+  // classic active tab.
+  it("leaves Codecast Lite to the router", () => {
+    for (const p of ["/lite", "/lite/needs-you", "/lite/team", "/lite/jx7abc"]) {
+      expect(isNonTabRoute(p)).toBe(true);
+    }
+  });
+
   // Public profiles live at the ROOT as a bare handle (/:username), rendered
   // full-page outside the shell. A bare single segment that isn't a known
   // in-shell route must be treated as non-tab, or a signed-in user's in-app
@@ -64,6 +73,11 @@ describe("shouldUseTabRouting", () => {
 
   it("does NOT intercept when leaving the shell for an auth route", () => {
     expect(shouldUseTabRouting("/login", "/inbox")).toBe(false);
+  });
+
+  it("does NOT intercept inside Codecast Lite, nor on the way out of it", () => {
+    expect(shouldUseTabRouting("/lite/jx7abc", "/lite")).toBe(false);
+    expect(shouldUseTabRouting("/tasks", "/lite/jx7abc")).toBe(false);
   });
 
   it("does NOT intercept external links", () => {

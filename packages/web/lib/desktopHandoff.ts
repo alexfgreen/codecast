@@ -100,7 +100,8 @@ export function parseDesktopDeepLinkPath(url: string): string | null {
 // The community rooms (/community) are a public page too: a link from the
 // marketing site or a search result opens them in the browser, whether or not
 // the reader owns the desktop app. So is a public profile (/:username), which
-// the rule below the list recognizes.
+// the rule below the list recognizes. Codecast Lite (/lite) is the browser
+// shell someone chose over the app: opening it hands nothing to the app.
 const HANDOFF_DENY = [
   /^\/$/,
   /^\/(about|features|documentation|privacy|security|support|terms|changelog|pricing|download|blog|compare)(\/|$)/,
@@ -114,6 +115,7 @@ const HANDOFF_DENY = [
   /^\/r(\/|$)/,
   /^\/community(\/|$)/,
   /^\/palette/,
+  /^\/lite(\/|$)/,
   /^\/api\//,
 ];
 

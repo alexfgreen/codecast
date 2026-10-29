@@ -203,4 +203,30 @@ describe("viewedConversationId", () => {
     expect(viewedConversationId({ ...base, activeTabId: "t1", tabs, currentSessionId: CONV_A }, "/inbox")).toBeNull();
     expect(viewedConversationId({ ...base, activeTabId: "t2", tabs, currentSessionId: CONV_A }, "/tasks")).toBe(CONV_A);
   });
+
+  // Codecast Lite sits outside the tab shell, and the classic tabs still
+  // hydrate under it: their active tab (an inbox or a conversation page) is
+  // another surface's view, never what the Lite window shows.
+  test("Codecast Lite reports the session at /lite/<id>, whatever the classic tab shows", () => {
+    expect(viewedConversationId(base, `/lite/${CONV_A}`)).toBe(CONV_A);
+    const tabs = [{ id: "t1", path: `/conversation/${CONV_B}` }, { id: "t2", path: `/inbox?s=${CONV_B}` }];
+    expect(viewedConversationId({ ...base, activeTabId: "t1", tabs }, `/lite/${CONV_A}`)).toBe(CONV_A);
+    expect(viewedConversationId({ ...base, activeTabId: "t2", tabs, currentSessionId: CONV_B }, `/lite/${CONV_A}`)).toBe(CONV_A);
+    // A store key resolves to its row's id; a stub is still nobody's to open.
+    expect(viewedConversationId(base, "/lite/jx7abcd")).toBe(CONV_B);
+    expect(viewedConversationId(base, "/lite/stub-1")).toBeNull();
+  });
+
+  test("Lite's other pages report nothing, even over a classic tab that shows a conversation", () => {
+    const tabs = [{ id: "t1", path: `/conversation/${CONV_B}` }];
+    for (const page of ["/lite", "/lite/needs-you", "/lite/team"]) {
+      expect(viewedConversationId({ ...base, activeTabId: "t1", tabs, currentSessionId: CONV_B }, page)).toBeNull();
+    }
+  });
+
+  test("any route outside the tab shell reports nothing from the hydrated tabs", () => {
+    const tabs = [{ id: "t1", path: `/inbox?s=${CONV_A}` }];
+    expect(viewedConversationId({ ...base, activeTabId: "t1", tabs, currentSessionId: CONV_A }, "/")).toBeNull();
+    expect(viewedConversationId({ ...base, activeTabId: "t1", tabs, currentSessionId: CONV_A }, "/settings/team/create")).toBeNull();
+  });
 });
