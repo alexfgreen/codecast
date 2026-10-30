@@ -25,6 +25,15 @@ export function LiteLayoutProvider({ rightPanelHost, children }: { rightPanelHos
   // A sheet opens on the conversation, never on a remembered sheet over it.
   const [rightPanelOpen, setRightPanelOpenState] = useState(() => !rightPanelSheet && readLitePref<unknown>(RIGHT_PANEL_PREF, false) === true);
   const [paletteOpen, setPaletteOpenState] = useState(false);
+  // Narrowing the window past the dock width turns an open docked panel into
+  // a sheet over the conversation; close it there instead, so a sheet only
+  // ever opens on a press. Adjusted during render, not in an effect, so the
+  // sheet never draws for a frame.
+  const [sheetMode, setSheetMode] = useState(rightPanelSheet);
+  if (sheetMode !== rightPanelSheet) {
+    setSheetMode(rightPanelSheet);
+    if (rightPanelSheet) setRightPanelOpenState(false);
+  }
 
   const setSidebarOpen = useCallback((open: boolean) => {
     if (isPhone) {
