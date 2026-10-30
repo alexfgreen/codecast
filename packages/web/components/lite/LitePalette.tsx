@@ -28,7 +28,7 @@ import { isForeignRow, isSub, ownTeamRowsSig, useInboxStore, useTrackedStore, ty
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { liteTeammateSessionIds } from "../../hooks/useLiteFeeders";
-import { rankSessions, searchableSessionsSig, sessionStanding, standingMark } from "../../lib/instantSessionSearch";
+import { rankSessions, searchableSessionsSig, sessionStanding } from "../../lib/instantSessionSearch";
 import { sessionCardTitle } from "../../lib/sessionCard";
 import { liteSessionPath } from "../../lib/inboxRouting";
 import { useLiteLayout } from "../../lib/lite/liteLayout";
@@ -170,21 +170,21 @@ export function LitePalette() {
     }
     const ranked = rankSessions(pool, q, (row) => sessionStanding(row, meId, row), SESSION_LIMIT);
     return ranked.map((row): SessionHit => {
-      const mark = standingMark(sessionStanding(row, meId, row));
+      // The sidebar model's mark, so a row reads the same here as there; a
+      // row the sidebar does not draw has none.
+      const marked = model.marks.get(row._id);
       const mine = !isForeignRow(row, meId);
-      const who = mine ? null : row.author_name?.split(" ")[0] ?? null;
-      // A teammate's waiting session waits on them, not on the viewer.
-      if (mark === "needs_input" && !mine) return { id: row._id, title: sessionCardTitle(row), mark: "waiting", markLabel: `Waiting on ${who ?? "its owner"}`, who, age: liteAge(row.updated_at, now) };
       return {
         id: row._id,
         title: sessionCardTitle(row),
-        mark: mark === "needs_input" ? "needs" : mark,
-        who,
+        mark: marked?.mark ?? null,
+        ...(marked?.mark === "waiting" && marked.label ? { markLabel: marked.label } : {}),
+        who: mine ? null : row.author_name?.split(" ")[0] ?? null,
         age: liteAge(row.updated_at, now),
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, searchableSessionsSig(s.sessions), ownTeamRowsSig(s.sessions), meId, activeTeamId, s.teamInboxIds, s.teamInboxIdSnapshot?.team_id]);
+  }, [q, searchableSessionsSig(s.sessions), ownTeamRowsSig(s.sessions), meId, activeTeamId, s.teamInboxIds, s.teamInboxIdSnapshot?.team_id, model.marks]);
 
   const projectHits = useMemo<ProjectHit[]>(() => {
     if (!q) return [];
