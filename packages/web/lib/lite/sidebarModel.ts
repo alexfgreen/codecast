@@ -1,15 +1,17 @@
 // Codecast Lite's sidebar, as data: which project a session files under, the
 // one mark a row wears, the order projects and rows sit in, and the order the
 // next/previous keys walk. Pure on purpose. The rows' verdicts come in from
-// the store's one classifier (placeInboxRows / sessionWorkState); this file
-// only arranges what that classifier already decided, so the sidebar and the
-// classic inbox can never disagree about what needs you.
+// the store's one classifier (placeInboxRows / sessionWorkState) and its read
+// model (sessionUnreadMap); this file only arranges what those already
+// decided, so the sidebar and the classic inbox can never disagree about what
+// needs you.
 import { sessionRepository } from "../repoNavigation";
 
-/** The one status mark a row wears. `needs`: waiting on the viewer; `done`: a
- *  finished turn nobody has read yet; `waiting`: a teammate's session waiting
- *  on its owner, not on the viewer; null: nothing to say. */
-export type LiteMark = "working" | "needs" | "waiting" | "done" | null;
+/** The one status mark a row wears. `needs`: an ask aimed at the viewer;
+ *  `error`: stuck on something the person must fix; `done`: a finished turn
+ *  nobody has read yet; `waiting`: a teammate's session asking its owner, not
+ *  the viewer; null: nothing to say. */
+export type LiteMark = "working" | "needs" | "error" | "waiting" | "done" | null;
 
 /** The placeInboxRows sections the sidebar lists. The triaged ones (stashed,
  *  snoozed, dismissed) are the person's own "not now" and stay out, and a
@@ -19,40 +21,69 @@ export const LITE_SECTIONS = ["questions", "needsInput", "working", "done", "dor
 /** A project shows this many sessions until the person asks for the rest. */
 export const LITE_PROJECT_CAP = 8;
 
+// The sections whose name is the row's work state. Any other (pinned, new, a
+// set-aside row shown because it is open) reads the row's own.
+const SECTION_STATE: Record<string, string> = { needsInput: "needs_input", working: "working", done: "done", dormant: "dormant" };
+
+/** What a mark reads off one of the viewer's rows besides its section. */
+export type LiteRowState = {
+  /** The row's own work state (sessionWorkState); read only where its
+   *  section does not say it. */
+  workState?: string | null;
+  /** A turn the viewer has not read (sessionUnreadMap). */
+  unread: boolean;
+  /** Hard blocked on something the person must fix (an API error banner:
+   *  login, limit, throttle; or an agent that stopped answering), by the
+   *  store's isSessionHardBlocked. */
+  failed: boolean;
+};
+
 /**
- * The mark for one of the viewer's rows, from the placeInboxRows section it
- * was filed in. An ask aimed at the person (questions) needs them even while
- * the agent works on; a done turn is only worth marking until it has been
- * read. A pinned or new row, or a set-aside one shown because it is open,
- * says nothing about its state by its section, so it reads its own work
- * state (sessionWorkState) instead.
+ * The mark for one of the viewer's rows. Only an ask aimed at the person (the
+ * questions section: an AskUserQuestion, a permission prompt, a decision
+ * asked of them) needs them, even while the agent works on. A row waiting on
+ * input that is stuck on a failure says so. A finished turn is marked until
+ * it has been read, whatever section it sits in, and a finished, read row
+ * waiting for the person's next step says nothing: it is the steady state,
+ * not a claim on them.
  */
-export function liteMarkOf(section: string, workState: string | null | undefined, unread: boolean): LiteMark {
-  switch (section) {
-    case "questions":
-    case "needsInput":
-      return "needs";
-    case "working":
-      return "working";
-    case "done":
-      return unread ? "done" : null;
-    case "dormant":
-      return null;
-    default:
-      if (workState === "needs_input") return "needs";
-      if (workState === "working") return "working";
-      return workState === "done" && unread ? "done" : null;
-  }
+export function liteMarkOf(section: string, row: LiteRowState): LiteMark {
+  if (section === "questions") return "needs";
+  const state = SECTION_STATE[section] ?? row.workState ?? null;
+  if (state === "needs_input" && row.failed) return "error";
+  if (state === "working") return "working";
+  return row.unread ? "done" : null;
 }
 
 /** The mark of a teammate's session: what it is doing, never whether the
  *  viewer has read it (the unread marks are the viewer's own sessions'). One
- *  waiting on input waits on its owner, so it is `waiting`, never `needs`:
- *  that mark says the viewer is the one it waits on. */
-export function liteTeammateMarkOf(workState: string | null | undefined): "working" | "waiting" | null {
-  if (workState === "needs_input") return "waiting";
+ *  asking its owner (`asking`: the questions section's own test,
+ *  sessionHasOpenQuestion) is `waiting`, never `needs`: that mark says the
+ *  viewer is the one asked. A finished one says nothing. */
+export function liteTeammateMarkOf(workState: string | null | undefined, asking: boolean): "working" | "waiting" | null {
   if (workState === "working") return "working";
-  return null;
+  return workState === "needs_input" && asking ? "waiting" : null;
+}
+
+/** A mark in words, for a pill or a screen reader: who a teammate's waiting
+ *  session waits on by their first name. */
+export function liteMarkLabel(mark: LiteMark, ownerName?: string | null): string | null {
+  switch (mark) {
+    case "needs":
+      return "Needs you";
+    case "error":
+      return "Failed";
+    case "done":
+      return "Done";
+    case "working":
+      return "Working";
+    case "waiting": {
+      const first = ownerName?.trim().split(/\s+/)[0];
+      return first ? `Waiting on ${first}` : "Waiting on its owner";
+    }
+    default:
+      return null;
+  }
 }
 
 type ProjectSource = {
@@ -106,7 +137,8 @@ export type LiteProjectGroup = {
   /** Every session in the project, newest first (sortAt). */
   all: LiteRowFacts[];
   /** The ones drawn while the project is open: the newest LITE_PROJECT_CAP,
-   *  plus any further row that needs the person or is the one open. */
+   *  plus any further row that needs the person, has failed, or is the one
+   *  open. */
   shown: LiteRowFacts[];
   hiddenCount: number;
   latestAt: number;
@@ -114,10 +146,10 @@ export type LiteProjectGroup = {
   mark: LiteMark;
 };
 
-const MARK_RANK: Record<NonNullable<LiteMark>, number> = { needs: 4, done: 3, waiting: 2, working: 1 };
+const MARK_RANK: Record<NonNullable<LiteMark>, number> = { needs: 5, error: 4, done: 3, waiting: 2, working: 1 };
 
-/** The mark that outranks the others: needs you, then unread, then waiting
- *  on someone else, then working. */
+/** The mark that outranks the others: needs you, then failed, then unread,
+ *  then waiting on someone else, then working. */
 export function strongestMark(marks: Iterable<LiteMark>): LiteMark {
   let best: LiteMark = null;
   for (const m of marks) if (m && (!best || MARK_RANK[m] > MARK_RANK[best])) best = m;
@@ -129,9 +161,10 @@ const bySortAt = (a: { sortAt: number; id: string }, b: { sortAt: number; id: st
 
 /**
  * Group rows into projects, the project with the newest row first, each
- * project's sessions newest first (sortAt, never the streaming activity). A project shows `cap` rows unless it is in
- * `showAll`; a row past the cap still shows when it needs the person (a row
- * that needs you never hides) or when it is the session open (`activeId`).
+ * project's sessions newest first (sortAt, never the streaming activity). A
+ * project shows `cap` rows unless it is in `showAll`; a row past the cap
+ * still shows when it needs the person or has failed (neither ever hides) or
+ * when it is the session open (`activeId`).
  */
 export function groupLiteProjects(
   rows: readonly LiteRowFacts[],
@@ -148,7 +181,7 @@ export function groupLiteProjects(
   for (const [key, list] of byKey) {
     const all = [...list].sort(bySortAt);
     const openAll = opts.showAll?.has(key) ?? false;
-    const shown = openAll ? all : all.filter((r, i) => i < cap || r.mark === "needs" || r.id === opts.activeId);
+    const shown = openAll ? all : all.filter((r, i) => i < cap || r.mark === "needs" || r.mark === "error" || r.id === opts.activeId);
     groups.push({
       key,
       label: all[0]!.projectLabel,
@@ -250,33 +283,4 @@ export function liteAge(ts: number | null | undefined, now: number): string {
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}d`;
   return `${Math.floor(days / 7)}w`;
-}
-
-/** One thing waiting on the person: an ask (its question) or a session
- *  waiting for them. */
-export type LiteNeedsItem = { key: string; sessionId: string; question: string | null };
-
-/**
- * Everything waiting on the person, in the order Needs you lists it: every
- * ask in the decision queue first, then each waiting session the queue does
- * not already hold (a session asking a question sits in both, and shows
- * once, as its ask). The count is this list's length, so the number and the
- * rows can never disagree.
- */
-export function liteNeedsYouItems(
-  asks: readonly { key: string; conversationId: string; question: string }[],
-  waiting: readonly { _id: string }[],
-): LiteNeedsItem[] {
-  const out: LiteNeedsItem[] = asks.map((a) => ({ key: `ask:${a.key}`, sessionId: a.conversationId, question: a.question || null }));
-  const asked = new Set(asks.map((a) => a.conversationId));
-  for (const row of waiting) if (!asked.has(row._id)) out.push({ key: `session:${row._id}`, sessionId: row._id, question: null });
-  return out;
-}
-
-/** How many things wait on the person: liteNeedsYouItems' length. */
-export function liteNeedsYouCount(
-  asks: readonly { key: string; conversationId: string; question: string }[],
-  waiting: readonly { _id: string }[],
-): number {
-  return liteNeedsYouItems(asks, waiting).length;
 }

@@ -147,8 +147,9 @@
   max-width: 80%;
 }
 
-/* A bubble's or a reply's time and copy: shown on hover and focus, always on
-   a touch screen. Only its opacity fades, so the row holds still. */
+/* A bubble's or a reply's time, copy and comment: shown on hover and focus,
+   always on a touch screen. Its comment count always shows. Only opacity
+   fades, so the row holds still. */
 [data-lite] .lt-th-meta {
   display: flex;
   align-items: center;
@@ -157,11 +158,13 @@
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   color: var(--lt-text-3);
+}
+[data-lite] .lt-th-meta > :not(.lt-th-cbadge) {
   opacity: 0;
   transition: opacity 100ms;
 }
-[data-lite] .lt-th-row:hover .lt-th-meta,
-[data-lite] .lt-th-meta:focus-within {
+[data-lite] .lt-th-row:hover .lt-th-meta > *,
+[data-lite] .lt-th-meta:focus-within > * {
   opacity: 1;
 }
 [data-lite] .lt-th-meta time {
@@ -184,8 +187,30 @@
   width: 12px;
   height: 12px;
 }
+/* The count of a message's comments; it opens the thread. */
+[data-lite] .lt-th-cbadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  border: 1px solid var(--lt-border);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-th-cbadge:hover,
+[data-lite] .lt-th-cbadge[aria-expanded="true"] {
+  background: var(--lt-hover);
+  color: var(--lt-text);
+}
+[data-lite] .lt-th-cbadge svg {
+  width: 11px;
+  height: 11px;
+}
 @media (pointer: coarse) {
-  [data-lite] .lt-th-meta {
+  [data-lite] .lt-th-meta > * {
     opacity: 1;
   }
 }
@@ -340,6 +365,124 @@
 /* A reused classic card (a question, a todo list, a `cast` command). */
 [data-lite] .lt-th-card {
   min-width: 0;
+}
+
+/* ── Agents talking to each other ───────────────────────────────────────── */
+
+/* Another agent's message, or this one's `cast send`: the agent hue down the
+   left edge, whose agent and which session on top. */
+[data-lite] .lt-agent {
+  min-width: 0;
+  padding: 8px 12px 10px;
+  border-left: 2px solid var(--lt-agent);
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--lt-agent) 5%, transparent);
+}
+[data-lite] .lt-agent-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 20px;
+  font-size: 12px;
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-agent-head > svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  color: var(--lt-agent);
+}
+[data-lite] .lt-agent-who {
+  flex-shrink: 0;
+  font-weight: 500;
+  color: var(--lt-text);
+}
+[data-lite] .lt-agent-sep {
+  flex-shrink: 0;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-agent-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-agent-title[data-mono] {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+[data-lite] a.lt-agent-title:hover {
+  color: var(--lt-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+[data-lite] .lt-agent-state {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 3px;
+  margin-left: 4px;
+  font-size: 11px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-agent-state svg {
+  width: 12px;
+  height: 12px;
+}
+[data-lite] .lt-agent-state[data-state="sent"] {
+  color: var(--lt-done-text);
+}
+[data-lite] .lt-agent-state[data-state="queued"] {
+  color: var(--lt-needs-text);
+}
+[data-lite] .lt-agent-state[data-state="failed"] {
+  color: var(--lt-error);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+/* The time sits at the end and shows on hover; always on a touch screen. */
+[data-lite] .lt-agent-time {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding-left: 8px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--lt-text-3);
+  opacity: 0;
+  transition: opacity 100ms;
+}
+[data-lite] .lt-th-row:hover .lt-agent-time {
+  opacity: 1;
+}
+@media (pointer: coarse) {
+  [data-lite] .lt-agent-time {
+    opacity: 1;
+  }
+}
+[data-lite] .lt-agent-body {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--lt-text);
+  overflow-wrap: anywhere;
+}
+[data-lite] .lt-agent-note {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 11px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-agent-raw {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--lt-text-2);
+  overflow-wrap: anywhere;
+}
+[data-lite] .lt-agent-why {
+  margin-top: 6px;
 }
 
 /* ── Dividers and the working line ──────────────────────────────────────── */
@@ -701,6 +844,148 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--lt-text-3);
+}
+
+/* ── Markdown in the transcript ────────────────────────────────────────── */
+
+/* What MessageMarkdown draws inside a reply, a bubble, a summary or an agent
+   card (each marked .lt-md): bare elements, no class of their own. Tailwind's
+   reset strips lists, headings and spacing, and Lite carries no prose rules,
+   so they are set here, calm and compact. Only bare elements are styled
+   (:not([class])), so a pill, a card or a code block that brings its own
+   classes keeps them. */
+[data-lite] .lt-md > :first-child {
+  margin-top: 0;
+}
+[data-lite] .lt-md > :last-child {
+  margin-bottom: 0;
+}
+[data-lite] .lt-md p:not([class]) {
+  margin: 0.55em 0;
+}
+[data-lite] .lt-md ul:not([class]),
+[data-lite] .lt-md ol:not([class]) {
+  margin: 0.45em 0;
+  padding-left: 1.5em;
+}
+[data-lite] .lt-md ul:not([class]) {
+  list-style: disc;
+}
+[data-lite] .lt-md ol:not([class]) {
+  list-style: decimal;
+}
+[data-lite] .lt-md ul:not([class]) ul:not([class]) {
+  list-style: circle;
+}
+[data-lite] .lt-md li:not([class]) {
+  margin: 0.15em 0;
+}
+[data-lite] .lt-md li:not([class])::marker {
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-md li:not([class]) > p:not([class]) {
+  margin: 0.2em 0;
+}
+[data-lite] .lt-md li:not([class]) > ul:not([class]),
+[data-lite] .lt-md li:not([class]) > ol:not([class]) {
+  margin: 0.1em 0;
+}
+[data-lite] .lt-md :is(h1, h2, h3, h4, h5, h6):not([class]) {
+  margin: 1em 0 0.4em;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--lt-text);
+}
+[data-lite] .lt-md h1:not([class]) {
+  font-size: 1.25em;
+}
+[data-lite] .lt-md h2:not([class]) {
+  font-size: 1.12em;
+}
+[data-lite] .lt-md h3:not([class]) {
+  font-size: 1em;
+}
+[data-lite] .lt-md :is(h4, h5, h6):not([class]) {
+  font-size: 0.95em;
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-md strong:not([class]) {
+  font-weight: 600;
+  color: var(--lt-text);
+}
+[data-lite] .lt-md a:not([class]) {
+  color: var(--lt-accent);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--lt-accent) 40%, transparent);
+  text-underline-offset: 2px;
+}
+[data-lite] .lt-md a:not([class]):hover {
+  text-decoration-color: currentColor;
+}
+/* Inline code; a fenced block's code carries the block's classes. */
+[data-lite] .lt-md :not(pre) > code:not([class]) {
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-th-code);
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  overflow-wrap: anywhere;
+}
+/* A code block (CodeBlock's pre clears its own border, so the edge is an
+   inset ring). */
+[data-lite] .lt-md pre {
+  margin: 0.6em 0;
+  border-radius: 8px;
+  background: var(--lt-raised);
+  box-shadow: inset 0 0 0 1px var(--lt-border);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+[data-lite] .lt-md pre:not([class]) {
+  padding: 8px 12px;
+  overflow-x: auto;
+}
+[data-lite] .lt-md pre code {
+  font-size: inherit;
+}
+[data-lite] .lt-md .code-block-accent::before {
+  display: none;
+}
+[data-lite] .lt-md blockquote:not([class]) {
+  margin: 0.55em 0;
+  padding-left: 0.8em;
+  border-left: 2px solid var(--lt-border);
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-md hr:not([class]) {
+  margin: 0.9em 0;
+  border: 0;
+  border-top: 1px solid var(--lt-border);
+}
+[data-lite] .lt-md table:not([class]) {
+  display: block;
+  max-width: 100%;
+  margin: 0.6em 0;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.45;
+}
+[data-lite] .lt-md table:not([class]) :is(th, td):not([class]) {
+  padding: 4px 10px;
+  border: 1px solid var(--lt-border);
+  text-align: left;
+  vertical-align: top;
+}
+[data-lite] .lt-md table:not([class]) th:not([class]) {
+  font-weight: 600;
+  background: var(--lt-th-code);
+}
+/* A bubble is compact: tighter blocks inside it. */
+[data-lite] .lt-th-bubble-body.lt-md p:not([class]) {
+  margin: 0.35em 0;
 }
 
 @media (max-width: 767px) {

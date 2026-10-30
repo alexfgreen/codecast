@@ -4,13 +4,17 @@
 // opens in place; a card tool is the classic card itself, and so is what woke
 // the agent, a system notice and a workflow's anchor. The classic blocks are
 // reused, never forked: MessageMarkdown, DiffView, ToolBlock, the question,
-// plan, todo and `cast` cards, the session-message card, SystemBlock.
+// plan, todo and `cast` cards, SystemBlock. Agents messaging each other
+// (`cast send`, both halves) are Lite's own cards (LiteAgentCards). A
+// person's bubble and the agent's reply take a comment: a hover action (always
+// shown on a touch screen) opens the message's shared thread under the row,
+// and a row that has comments shows their count, which opens it too.
 import { memo, useCallback, useMemo, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   BookOpen, Brain, ChevronRight, CircleHelp, Copy, FileCode, GitFork, Globe, ListTodo, MessageSquare, Monitor, Move,
-  Pencil, Plug, Search, Settings, SquareCheck, Terminal, Upload, Users, Zap, ArrowUpRight,
+  MessageSquarePlus, Pencil, Plug, Search, Settings, SquareCheck, Terminal, Upload, Users, Zap, ArrowUpRight,
 } from "lucide-react";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import {
@@ -38,7 +42,7 @@ import {
   ToolBlock, WorkflowToolBlock,
 } from "../../conversation/blocks/toolBlocks";
 import {
-  ChatWakeBlock, ContextRecoveryDivider, FoldedPromptBlock, ScheduleWakeupBlock, SessionMessageBlock, SystemBlock, TaskNotificationLine,
+  ChatWakeBlock, ContextRecoveryDivider, FoldedPromptBlock, ScheduleWakeupBlock, SystemBlock, TaskNotificationLine,
   WorkflowEventBlock, WorkflowTaskBlock,
 } from "../../conversation/blocks/systemBlocks";
 import { ScheduledTaskBlock } from "../../conversation/blocks/triggerRunBlock";
@@ -46,6 +50,9 @@ import { VaultReadyLine } from "../../conversation/blocks/VaultRequestCard";
 import { SessionHandoffCard } from "../../conversation/SessionHandoff";
 import type { SessionHandoffPrompt } from "../../../lib/sessionHandoff";
 import { CastCommandBlock } from "../../conversation/blocks/castBlocks";
+import { parseOutboundSend } from "../../../lib/lite/agentMessages";
+import { LiteMessageComments } from "../comments/LiteMessageComments";
+import { LiteAgentInbound, LiteAgentOutbound } from "./LiteAgentCards";
 
 const ICONS: Record<ToolIconName, typeof Terminal> = {
   terminal: Terminal,
@@ -87,6 +94,13 @@ export type LiteRowProps = {
   isOwner: boolean;
   ownerId: string | null;
   ownerName: string | null;
+  /** Comments on this row's message (a bubble or a reply). */
+  commentCount?: number;
+  /** Its comment thread is open under it. */
+  commentOpen?: boolean;
+  /** Open or close the thread, by row key; absent where the row takes none
+   *  (a send not yet on the server, a session that is not). */
+  onComment?: (key: string) => void;
 };
 
 export const LiteRowView = memo(function LiteRowView(props: LiteRowProps) {
@@ -96,16 +110,17 @@ export const LiteRowView = memo(function LiteRowView(props: LiteRowProps) {
     case "session_message":
       return (
         <div className="lt-th-row lt-th-gap">
-          <SessionMessageBlock variant={row.variant === "agent" ? "agent" : "session"} from={row.from} name={row.name} body={row.body} timestamp={row.ts} />
+          <LiteAgentInbound row={row} sessionId={props.sessionId} />
         </div>
       );
     case "text":
       return (
         <div className="lt-th-row lt-th-gap" style={indent(row.depth)}>
-          <div className="lt-th-text" data-error={row.error ? "" : undefined}>
+          <div className="lt-th-text lt-md" data-error={row.error ? "" : undefined}>
             <MessageMarkdown content={row.content} />
           </div>
-          <Meta ts={row.ts} text={row.content} />
+          <Meta ts={row.ts} text={row.content} {...commentMeta(props)} />
+          <MessageComments {...props} messageId={row.message._id} />
         </div>
       );
     case "image":
@@ -118,7 +133,7 @@ export const LiteRowView = memo(function LiteRowView(props: LiteRowProps) {
             <button type="button" className="lt-th-divider" data-tone={row.tone} aria-expanded={props.open} onClick={() => props.onToggle(row.key)}>
               {row.label}
             </button>
-            {props.open && <div className="lt-th-summary"><MessageMarkdown content={row.body} /></div>}
+            {props.open && <div className="lt-th-summary lt-md"><MessageMarkdown content={row.body} /></div>}
           </div>
         );
       }
@@ -222,7 +237,8 @@ function Line({ icon, label, detail, hint, error, ts, open, onToggle }: {
 
 const LONG_PROMPT = 600;
 
-function UserRow({ row, open, onToggle, meId, isOwner, ownerId, ownerName }: LiteRowProps & { row: Extract<LiteVisibleRow, { kind: "user" }> }) {
+function UserRow(props: LiteRowProps & { row: Extract<LiteVisibleRow, { kind: "user" }> }) {
+  const { row, open, onToggle, meId, isOwner, ownerId, ownerName } = props;
   // Who typed it, as the classic view reads it: the row's sender, else the
   // viewer for a send still on its way, else the session's owner (a prompt
   // typed at the terminal carries no sender).
@@ -254,7 +270,7 @@ function UserRow({ row, open, onToggle, meId, isOwner, ownerId, ownerName }: Lit
         {row.body && (
           <div className="lt-th-bubble" data-pending={pending ? "" : undefined}>
             {row.decision?.question && <div className="lt-th-quote">{row.decision.question}</div>}
-            <div className="lt-th-bubble-body" data-clamped={long && !open ? "" : undefined}>
+            <div className="lt-th-bubble-body lt-md" data-clamped={long && !open ? "" : undefined}>
               {joint ? joint.map((part, i) => (
                 <div key={i} className="lt-th-joint">
                   <div className="lt-th-joint-name">{part.from || "Someone"}</div>
@@ -270,15 +286,36 @@ function UserRow({ row, open, onToggle, meId, isOwner, ownerId, ownerName }: Lit
           </div>
         )}
         {row.message._isQueued && <span className="lt-th-author">Queued</span>}
-        {row.body && <Meta ts={row.ts} text={row.body} />}
+        {row.body && <Meta ts={row.ts} text={row.body} {...commentMeta(props)} />}
       </div>
+      <MessageComments {...props} messageId={row.message._id} />
     </div>
   );
 }
 
-/** Under a bubble or a reply: its time and a copy, shown on hover (always on
- *  a touch screen). No animation beyond the fade, so the row holds still. */
-function Meta({ ts, text }: { ts: number; text: string }) {
+/** A row's comment controls for its Meta line: the count that opens the
+ *  thread, or the action that starts one. */
+function commentMeta(props: LiteRowProps): { comments: number; commentOpen: boolean; onComment?: () => void } {
+  const { row, onComment } = props;
+  return { comments: props.commentCount ?? 0, commentOpen: !!props.commentOpen, onComment: onComment ? () => onComment(row.key) : undefined };
+}
+
+/** The message's thread, under its row while open. */
+function MessageComments({ commentOpen, onComment, sessionId, row, messageId }: LiteRowProps & { messageId: string }) {
+  if (!commentOpen || !onComment) return null;
+  return <LiteMessageComments sessionId={sessionId} messageId={messageId} onClose={() => onComment(row.key)} />;
+}
+
+/** Under a bubble or a reply: its time, a copy and a comment, shown on hover
+ *  (always on a touch screen), and the count of its comments, always shown.
+ *  No animation beyond the fade, so the row holds still. */
+function Meta({ ts, text, comments = 0, commentOpen = false, onComment }: {
+  ts: number;
+  text: string;
+  comments?: number;
+  commentOpen?: boolean;
+  onComment?: () => void;
+}) {
   const copy = () => {
     void copyToClipboard(text)
       .then(() => toast.success("Copied"))
@@ -286,10 +323,28 @@ function Meta({ ts, text }: { ts: number; text: string }) {
   };
   return (
     <div className="lt-th-meta">
+      {comments > 0 && (
+        <button
+          type="button"
+          className="lt-th-cbadge"
+          aria-expanded={commentOpen}
+          aria-label={`${comments} ${comments === 1 ? "comment" : "comments"}`}
+          onClick={onComment}
+          disabled={!onComment}
+        >
+          <MessageSquare aria-hidden />
+          {comments}
+        </button>
+      )}
       <time dateTime={new Date(ts).toISOString()}>{clock(ts)}</time>
       <button type="button" className="lt-th-meta-btn" aria-label="Copy" title="Copy" onClick={copy}>
         <Copy aria-hidden />
       </button>
+      {onComment && comments === 0 && (
+        <button type="button" className="lt-th-meta-btn" aria-label="Comment" title="Comment" aria-expanded={commentOpen} onClick={onComment}>
+          <MessageSquarePlus aria-hidden />
+        </button>
+      )}
     </div>
   );
 }
@@ -449,6 +504,9 @@ function CardTool({ step, sessionId, canSend }: { step: LiteStep; sessionId: str
   if (tc.name === "Skill") return <SkillBlock tool={tc} />;
   if (tc.name === "Monitor" || tc.name === "monitor" || isBackgroundBashToolCall(tc)) return <MonitorBlock tool={tc} conversationId={sessionId} />;
   if (tc.name === "ScheduleWakeup") return <ScheduleWakeupBlock tool={tc} result={result} timestamp={step.ts} />;
+  // This agent messaging another (a session, or a role's standing one).
+  const send = parseOutboundSend(tc);
+  if (send) return <LiteAgentOutbound send={send} result={result} ts={step.ts} />;
   if (parseCastCommand(tc)) return <CastCommandBlock tool={tc} result={result} globalImageMap={imageMap} conversationId={convId} />;
   return <ToolBlock tool={tc} result={result} messageId={step.messageId} conversationId={convId} timestamp={step.ts} globalImageMap={imageMap} />;
 }
