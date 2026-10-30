@@ -214,8 +214,8 @@ test("the shortcuts sheet lists the keys Lite answers, and only on a team the te
     expect(labels).toContain("Search and actions");
     expect(labels).toContain("Needs you");
     expect(labels).not.toContain("The team");
-    // No composer yet, so no New session key; and no classic context's keys.
-    expect(labels.some((l) => /new session/i.test(l ?? ""))).toBe(false);
+    // The new-session box answers its key, so the sheet lists it.
+    expect(labels).toContain("New session");
     expect(host.querySelectorAll(".lt-key-row kbd, .lt-key-row [data-keycap], .lt-key-row span span").length).toBeGreaterThan(0);
     await unmount();
   } finally {

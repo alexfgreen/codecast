@@ -12,6 +12,10 @@
 #                         nothing reads, or a heartbeat, re-renders nothing
 #   listRowsHoldStill     list rows run no infinite animation
 #   transcriptRowsNoLayers  transcript rows are not compositor layers
+#   liteNewSessionTyping  Codecast Lite's new-session box holds the composer's
+#                         budget beside the recent sessions under it
+#   liteSessionTyping     Lite's session composer holds it beside the thread's
+#                         virtual list, which a keystroke never re-renders
 #   keys dispatch         a typed key that matches no shortcut never queries the DOM
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -27,6 +31,8 @@ bun test --isolate --timeout 120000 \
   components/__tests__/transcriptRowsNoLayers.guard.test.ts \
   hooks/__tests__/useConvexSync.typingDefer.mount.test.tsx \
   lib/__tests__/inputQuiet.test.ts \
-  lib/__tests__/holdTextareaTextNode.mount.test.tsx
+  lib/__tests__/holdTextareaTextNode.mount.test.tsx \
+  components/lite/__tests__/liteNewSessionTyping.mount.test.tsx \
+  components/lite/__tests__/liteSessionTyping.mount.test.tsx
 cd "$root/platform/packages/keys"
 bun test src/dispatch.test.ts
