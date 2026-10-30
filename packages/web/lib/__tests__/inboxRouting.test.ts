@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { isInboxRoute, isInboxSessionView, pageOwnsRailHighlight, railPointerOnNavigate, resolveSessionSelectKind } from "../inboxRouting";
+import { isInboxRoute, isInboxSessionView, liteNavigationTarget, liteSessionIdFromPath, liteSessionPath, pageOwnsRailHighlight, railPointerOnNavigate, resolveSessionSelectKind, sessionFocusKind } from "../inboxRouting";
 
 describe("inboxRouting", () => {
   it("detects real inbox routes", () => {
@@ -84,5 +84,42 @@ describe("resolveSessionSelectKind", () => {
     expect(resolveSessionSelectKind({
       isOnSettingsPage: true, isOnInboxPage: true,
     })).toBe("leave");
+  });
+});
+
+// Codecast Lite's addresses: /lite/<id> opens one session, and its own pages
+// (home, Needs you, Team) open none. None of them is a classic inbox route or
+// conversation page, so the classic rail's rules leave them alone.
+describe("Codecast Lite paths", () => {
+  it("reads the session from /lite/<id> only", () => {
+    expect(liteSessionIdFromPath("/lite/jx7abc")).toBe("jx7abc");
+    expect(liteSessionIdFromPath("/lite/jx7abc/")).toBe("jx7abc");
+    expect(liteSessionIdFromPath("/lite/jx7abc?x=1#m")).toBe("jx7abc");
+    for (const p of ["/lite", "/lite/", "/lite/needs-you", "/lite/team", "/lite/jx7abc/diff", "/conversation/jx7abc", "/inbox", "/literal/x", null, undefined]) {
+      expect({ p, id: liteSessionIdFromPath(p) }).toEqual({ p, id: null });
+    }
+  });
+
+  it("builds the address it reads back", () => {
+    expect(liteSessionPath("jx7abc")).toBe("/lite/jx7abc");
+    expect(liteSessionIdFromPath(liteSessionPath("stub-1"))).toBe("stub-1");
+  });
+
+  it("leads a reused component's classic session addresses to Lite, and nothing else", () => {
+    expect(liteNavigationTarget("/conversation/jx7abc")).toBe("/lite/jx7abc");
+    expect(liteNavigationTarget("/conversation/jx7abc#msg-m1")).toBe("/lite/jx7abc#msg-m1");
+    expect(liteNavigationTarget("/conversation/jx7abc?share=tok")).toBe("/lite/jx7abc?share=tok");
+    expect(liteNavigationTarget("/conversation/jx7abc/diff")).toBe("/lite/jx7abc");
+    expect(liteNavigationTarget("/inbox?s=jx7abc")).toBe("/lite/jx7abc");
+    expect(liteNavigationTarget("/inbox?s=jx7abc&m=m1")).toBe("/lite/jx7abc?m=m1");
+    expect(liteNavigationTarget("/inbox")).toBe("/lite");
+    for (const p of ["/tasks/ct-1", "/lite/needs-you", "/docs?x=1", "/inboxes", "#top", "https://example.com/conversation/x", "//evil.example/inbox"]) {
+      expect({ p, to: liteNavigationTarget(p) }).toEqual({ p, to: p });
+    }
+  });
+
+  it("is no inbox route or conversation page to the classic rail", () => {
+    expect(isInboxRoute("/lite/jx7abc")).toBe(false);
+    expect(sessionFocusKind("/lite/jx7abc")).toBe("panel");
   });
 });

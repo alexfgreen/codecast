@@ -6,7 +6,7 @@ import { MOBILE_ROOT, WEB_ROOT, codeLines as codeLinesOf, walkSources } from "./
 // FEEDER PARITY GUARD (docs/architecture/sync-convergence.md C5).
 //
 // `useSyncCore(profile)` owns the full feeder mount set for the session
-// replica; web (DashboardLayout) and mobile (StoreSyncBridge) both mount IT,
+// replica; web (DashboardSyncEffects) and mobile (StoreSyncBridge) both mount IT,
 // never a hand-picked subset. Before this, mobile mounted two of five feeders,
 // so its replica computed counts from thinner data — the drift class the
 // parity rule ends. Three invariants, all source-level:
@@ -56,8 +56,8 @@ describe("useSyncCore owns the full feeder mount set", () => {
     expect(coreSrc.includes("useInboxDigestCompare();")).toBe(true);
   });
 
-  test("web DashboardLayout mounts useSyncCore, not a subset", () => {
-    const src = read(join(WEB_ROOT, "components", "DashboardLayout.tsx"));
+  test("web DashboardSyncEffects mounts useSyncCore, not a subset", () => {
+    const src = read(join(WEB_ROOT, "components", "DashboardSyncEffects.tsx"));
     expect(src.includes('useSyncCore("web")')).toBe(true);
     const code = codeLines(src).join("\n");
     for (const feeder of CORE_FEEDERS) {
@@ -139,10 +139,31 @@ const SESSION_REPLICA_SUBSCRIPTIONS = SESSION_REPLICA_CHANNELS.filter(
   (ch) => !ch.startsWith("users.") && ch !== "conversations.getInboxSessionsByIds" && ch !== "conversations.listInboxSessionsPaginated",
 );
 
+// Shared feed helpers that subscribe on their caller's behalf. A call to one
+// counts as using its channels, so moving the `api.*` text into a helper
+// cannot hide a feeder from the walk below.
+const CHANNEL_HELPERS: Record<string, readonly string[]> = {
+  useTeamSessionsFeed: ["conversations.listTeamInboxSessions", "conversations.teamSessionsLiveness"],
+};
+
 function usesChannel(src: string, channels: readonly string[] = SESSION_REPLICA_CHANNELS): string[] {
   const code = codeLines(src).join("\n");
-  return channels.filter((ch) => code.includes(`api.${ch}`));
+  const viaHelper = new Set<string>();
+  for (const [helper, helperChannels] of Object.entries(CHANNEL_HELPERS)) {
+    if (code.includes(`${helper}(`)) for (const ch of helperChannels) viaHelper.add(ch);
+  }
+  return channels.filter((ch) => code.includes(`api.${ch}`) || viaHelper.has(ch));
 }
+
+// Web hooks that feed a replica channel OUTSIDE useSyncCore, on purpose, each
+// with why. Every entry forks what the web replica holds from mobile's, so an
+// entry is a decision, not a way past this guard.
+const OUTSIDE_CORE = new Map<string, string>([
+  [
+    "useLiteTeammateSessions.ts",
+    "Codecast Lite's teammates (web only): the active team's list and liveness through the board's own applier, fed by the sync host only while a Lite window holds its lock",
+  ],
+]);
 
 // Files reachable from a root through RELATIVE imports inside hooks/ (the
 // feeders compose each other: useSyncInboxSessions mounts useLiveInboxSessions
@@ -183,7 +204,7 @@ describe("every session-replica feeder is in the useSyncCore profile (derived)",
     for (const name of readdirSync(join(WEB_ROOT, "hooks"))) {
       if (!/\.tsx?$/.test(name) || /\.test\.tsx?$/.test(name)) continue;
       const channels = usesChannel(read(join(WEB_ROOT, "hooks", name)));
-      if (channels.length === 0) continue;
+      if (channels.length === 0 || OUTSIDE_CORE.has(name)) continue;
       if (!closure.has(name)) offenders.push(`hooks/${name} feeds ${channels.join(", ")} but useSyncCore does not mount it`);
     }
     expect(offenders).toEqual([]);
@@ -198,6 +219,12 @@ describe("every session-replica feeder is in the useSyncCore profile (derived)",
       }
     }
     expect([...SESSION_REPLICA_CHANNELS].filter((ch) => !covered.has(ch))).toEqual([]);
+  });
+
+  test("each outside-core exception still feeds a channel, and through a helper the walk sees", () => {
+    for (const name of OUTSIDE_CORE.keys()) {
+      expect(usesChannel(read(join(WEB_ROOT, "hooks", name))).length, `hooks/${name} no longer feeds a replica channel: drop its exception`).toBeGreaterThan(0);
+    }
   });
 
   test("no mobile file subscribes to a replica channel directly", () => {
