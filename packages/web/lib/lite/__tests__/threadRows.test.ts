@@ -201,6 +201,22 @@ describe("buildLiteRows", () => {
     const msgs: Message[] = [person("Audit the retry worker.", 0), reply("Found it.", 9)];
     const rows = buildLiteRows(msgs, { active: false, parentConversationId: "jx7parent0000000000000000000000" });
     expect(kinds(rows)).toEqual(["session_message", "text"]);
+    // The card resolves the parent by its id, not the head of it the wire carries.
+    expect((rows[0] as Extract<LiteRow, { kind: "session_message" }>).fromId).toBe("jx7parent0000000000000000000000");
+  });
+
+  test("another session's message names its sender; a person typing into the session is a named bubble", () => {
+    const msgs: Message[] = [
+      person('<session-message from="jx7c6zk" name="Maya Kim">\nDoes mobile pin the old client?\n</session-message>', 0),
+      reply("Checking.", 3),
+      person('<user-message from="Ann Lee">\nplease also bump it\n</user-message>', 10),
+    ];
+    const rows = buildLiteRows(msgs, { active: false });
+    const inbound = rows.find((r) => r.kind === "session_message") as Extract<LiteRow, { kind: "session_message" }>;
+    expect(inbound).toMatchObject({ from: "jx7c6zk", name: "Maya Kim", body: "Does mobile pin the old client?" });
+    expect(inbound.fromId).toBeUndefined();
+    const typed = rows.find((r) => r.kind === "user") as Extract<LiteRow, { kind: "user" }>;
+    expect(typed).toMatchObject({ author: "Ann Lee", body: "please also bump it" });
   });
 
   test("opening a fold and a run lays their rows out one level in", () => {

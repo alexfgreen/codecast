@@ -1,14 +1,14 @@
 // /lite/:sessionId: one session. Its header (where it lives, what it is
-// called, what state it is in, Stop while it runs, the right panel and the
-// way to the classic view), the thread, the composer under it, and the right
-// panel's slot.
+// called, what state it is in, who else is here and who is typing, the
+// sessions it has talked with, Stop while it runs, Share, the ⋯ menu with
+// hand-off and "message another agent", the right panel and the way to the
+// classic view), the thread, the composer under it, and the right panel's
+// slot.
 import { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import Link from "next/link";
-import { toast } from "sonner";
-import { ArrowUpRight, Ellipsis, Link2, PanelRight } from "lucide-react";
-import { getProjectName, isForeignRow, sessionWorkState, useInboxStore } from "@/store/inboxStore";
-import { useCoarseNow } from "@/hooks/useCoarseNow";
+import { ArrowUpRight, PanelRight } from "lucide-react";
+import { getProjectName, isConvexId, useInboxStore } from "@/store/inboxStore";
 import { useWatchEffect } from "@/hooks/useWatchEffect";
 import { useManagedSessionFields, useSessionEscape } from "@/hooks/useSessionComposerControls";
 import { isActiveAgentStatus, type LiveAgentStatus } from "@/lib/pendingBanner";
@@ -16,24 +16,24 @@ import { runningSubagents } from "@/lib/runningSubagents";
 import { stopNeedsConfirm } from "@/lib/stopNeedsConfirm";
 import { sessionCardTitle } from "@/lib/sessionCard";
 import { liteSessionPath } from "@/lib/inboxRouting";
-import { copyToClipboard } from "@/lib/utils";
 import { useLiteLayout } from "@/lib/lite/liteLayout";
-import { useLiteSidebarModel } from "@/lib/lite/useLiteSidebar";
+import { useLiteSessionMark } from "@/lib/lite/useLiteSidebar";
 import { useLiteSessionAccess } from "@/lib/lite/threadAccess";
-import { liteProjectOf, type LiteMark } from "@/lib/lite/sidebarModel";
+import { useLiteTalkedWith } from "@/lib/lite/collabHooks";
+import { liteProjectOf } from "@/lib/lite/sidebarModel";
 import { LiteTopbar } from "@/components/lite/LiteTopbar";
 import { LiteSessionPanel } from "@/components/lite/panel/LiteSessionPanel";
 import { LiteStatusMark } from "@/components/lite/LiteSidebarRows";
 import { LiteThread } from "@/components/lite/thread/LiteThread";
 import { LiteComposer } from "@/components/lite/thread/LiteComposer";
+import { LiteTypingChip, LiteViewerFaces } from "@/components/lite/collab/LiteFaces";
+import { LiteTalkedWithChips } from "@/components/lite/collab/LiteTalkedWith";
+import { LiteShareControl } from "@/components/lite/collab/LiteShare";
+import { LiteSessionMenu } from "@/components/lite/collab/LiteSessionMenu";
+import { LiteHandoffDialog } from "@/components/lite/collab/LiteHandoffDialog";
+import { LiteMessageAgentDialog } from "@/components/lite/collab/LiteMessageAgentDialog";
 import { ShortcutTooltip } from "@/components/KeyboardShortcutsHelp";
 import { StopConfirm, type StopRequest } from "@/components/conversation/StopConfirm";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 export default function LiteSessionPage() {
   const id = useParams<{ sessionId: string }>().sessionId ?? "";
@@ -83,19 +83,8 @@ export default function LiteSessionPage() {
   );
 }
 
-const PILL_WORDS: Record<string, string> = {
-  working: "Working",
-  needs_input: "Needs input",
-  done: "Done",
-  dormant: "Parked",
-  idle: "Idle",
-};
-
 function LiteSessionHeader({ id }: { id: string }) {
-  const navigate = useNavigate();
   const { rightPanelOpen, toggleRightPanel } = useLiteLayout();
-  const model = useLiteSidebarModel();
-  const now = useCoarseNow(15_000);
   // Primitives off one row, so a heartbeat that moves none of them re-renders
   // nothing here.
   const title = useInboxStore((s) => {
@@ -106,24 +95,13 @@ function LiteSessionHeader({ id }: { id: string }) {
     const row = s.sessions[id] ?? s.conversations[id];
     return row ? liteProjectOf(row as Parameters<typeof liteProjectOf>[0], getProjectName).label : "";
   });
-  const workState = useInboxStore((s) => (s.sessions[id] ? sessionWorkState(s.sessions[id], now) : null));
-  const mine = useInboxStore((s) => {
-    const row = s.sessions[id];
-    return !row || !isForeignRow(row, s.currentUser?._id ? String(s.currentUser._id) : null);
-  });
-
-  // The sidebar's mark when the row is drawn there (it knows "done, not read
-  // yet"), else the session's own state.
-  const drawn = model.projects.flatMap((g) => g.all).find((r) => r.id === id)?.mark
-    ?? model.teammates.flatMap((g) => g.rows).find((r) => r.id === id)?.mark;
-  // Waiting on input needs the viewer only when the session is theirs.
-  const mark: LiteMark = drawn !== undefined ? drawn
-    : workState === "needs_input" ? (mine ? "needs" : "waiting")
-    : workState === "working" ? "working" : null;
-  const pill = mark === "needs" && mine ? "Needs you" : mark === "done" ? "Done" : workState ? PILL_WORDS[workState] : null;
+  // The session's one mark, the sidebar's own (Needs you, Failed, Done,
+  // Working, Waiting on Maya); no mark, no pill.
+  const { mark, label: pill } = useLiteSessionMark(id);
 
   // Stop: the composer's interrupt, here too while a turn runs.
-  const { isOwner } = useLiteSessionAccess(id);
+  const access = useLiteSessionAccess(id);
+  const { isOwner } = access;
   const managed = useManagedSessionFields(id);
   const running = isActiveAgentStatus(managed?.agent_status as LiveAgentStatus | undefined);
   const conversationActive = useInboxStore((s) => ((s.conversations[id] ?? s.sessions[id]) as { status?: string } | undefined)?.status !== "completed");
@@ -136,11 +114,12 @@ function LiteSessionHeader({ id }: { id: string }) {
     if (stopNeedsConfirm(subagents)) setStopRequest({ subagents, run: () => { stop(); } });
     else stop();
   };
-  const copyLink = () => {
-    void copyToClipboard(`${window.location.origin}${liteSessionPath(id)}`)
-      .then(() => toast.success("Link copied"))
-      .catch(() => toast.error("Could not copy the link"));
-  };
+
+  // The sessions this one has talked with: three chips on a wide bar, all of
+  // them in the ⋯ menu.
+  const talked = useLiteTalkedWith(id);
+  // The ⋯ menu's acts open their dialogs here: the menu unmounts as it closes.
+  const [dialog, setDialog] = useState<"handoff" | "agent" | null>(null);
 
   return (
     <LiteTopbar>
@@ -154,47 +133,43 @@ function LiteSessionHeader({ id }: { id: string }) {
         )}
         <span className="lt-crumb-title" aria-current="page">{title || "Session"}</span>
       </nav>
-      {pill && (
-        <span className="lt-pill" data-mark={mark ?? undefined} title={pill}>
-          {mark && <span aria-hidden className="inline-flex"><LiteStatusMark mark={mark} /></span>}
+      {mark && pill && (
+        <span className="lt-pill" data-mark={mark} title={pill}>
+          <span aria-hidden className="inline-flex"><LiteStatusMark mark={mark} /></span>
           {/* On a phone the mark alone; the words stay for a screen reader. */}
-          <span className={mark ? "max-sm:sr-only" : undefined}>{pill}</span>
+          <span className="max-sm:sr-only">{pill}</span>
         </span>
       )}
+      <span className="contents max-md:hidden"><LiteTypingChip sessionId={id} /></span>
+      <LiteTalkedWithChips peers={talked} className="max-xl:!hidden" />
+      <LiteViewerFaces sessionId={id} />
       {running && isOwner && (
         <button type="button" className="lt-btn" onClick={onStop} aria-label="Stop the agent">
           <span aria-hidden className="h-2 w-2 rounded-[2px] bg-current" />
           Stop
         </button>
       )}
-      {/* The ⋯ menu carries it on a phone. */}
-      <Link href={`/inbox?s=${encodeURIComponent(id)}`} className="lt-btn max-sm:!hidden" aria-label="Open in classic" title="Open this session in the classic app">
+      {/* A session not yet on the server has nothing to share. */}
+      {access.known && isConvexId(id) && <LiteShareControl sessionId={id} isOwner={isOwner} />}
+      {/* The ⋯ menu carries it on a narrower bar. */}
+      <Link href={`/inbox?s=${encodeURIComponent(id)}`} className="lt-btn max-lg:!hidden" aria-label="Open in classic" title="Open this session in the classic app">
         Open in classic
         <ArrowUpRight aria-hidden />
       </Link>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button type="button" className="lt-icon-btn" aria-label="More">
-            <Ellipsis aria-hidden />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" data-lite="" className="lt-menu">
-          <DropdownMenuItem className="lt-menu-item" onSelect={copyLink}>
-            <Link2 className="w-4 h-4 text-[var(--lt-text-3)]" aria-hidden />
-            Copy link
-          </DropdownMenuItem>
-          <DropdownMenuItem className="lt-menu-item" onSelect={() => navigate(`/inbox?s=${encodeURIComponent(id)}`)}>
-            <ArrowUpRight className="w-4 h-4 text-[var(--lt-text-3)]" aria-hidden />
-            Open in classic
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <LiteSessionMenu
+        sessionId={id}
+        talked={talked}
+        onHandoff={() => setDialog("handoff")}
+        onMessageAgent={() => setDialog("agent")}
+      />
       <ShortcutTooltip label={rightPanelOpen ? "Hide changes" : "Show changes"} action="lite.toggleRightPanel">
         <button type="button" className="lt-icon-btn" aria-label={rightPanelOpen ? "Hide changes" : "Show changes"} aria-pressed={rightPanelOpen} onClick={toggleRightPanel}>
           <PanelRight aria-hidden />
         </button>
       </ShortcutTooltip>
       <StopConfirm request={stopRequest} onClose={() => setStopRequest(null)} />
+      {dialog === "handoff" && <LiteHandoffDialog sessionId={id} title={title || "Session"} onClose={() => setDialog(null)} />}
+      {dialog === "agent" && <LiteMessageAgentDialog sessionId={id} onClose={() => setDialog(null)} />}
     </LiteTopbar>
   );
 }

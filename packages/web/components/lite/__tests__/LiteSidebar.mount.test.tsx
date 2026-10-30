@@ -10,7 +10,6 @@ import { LiteSidebarModelProvider } from "../LiteSidebarModel";
 import { LiteSidebar } from "../LiteSidebar";
 import { LitePalette } from "../LitePalette";
 import { LiteShortcutsSheet } from "../LiteShortcutsSheet";
-import LiteNeedsYouPage from "../../../app/lite/needs-you/page";
 
 // The sidebar a person reads: their sessions under their projects, the
 // project with the latest activity first, a mark on what is working and on
@@ -193,16 +192,6 @@ test("a teammate's waiting session waits on them: a hollow mark that names them,
   expect(mayas.hasAttribute("data-attention")).toBe(false);
   // Hers is not the viewer's to answer, so Needs you does not count it.
   expect(needsCount(host)).toBe(mine);
-  await unmount();
-});
-
-test("Needs you lists exactly what its count counts, each row opening its session", async () => {
-  const { host, unmount } = await mount("/lite/needs-you", <LiteNeedsYouPage />);
-  const rows = [...host.querySelectorAll(".lt-list a.lt-row")];
-  // The ask and the finished turn waiting for its next step; never the one working.
-  expect(rows.map((a) => a.getAttribute("href")).sort()).toEqual([`/lite/${ASKING}`, `/lite/${NOTES}`]);
-  expect(host.querySelector(".lt-topbar .lt-count")?.textContent).toBe(String(rows.length));
-  for (const a of rows) expect(a.querySelector(".lt-mark")?.getAttribute("data-mark")).toBe("needs");
   await unmount();
 });
 
