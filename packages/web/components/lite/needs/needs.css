@@ -1,0 +1,200 @@
+/* Codecast Lite: the failed mark (every surface that draws a mark loads this
+   file through LiteSidebarRows) and the Needs you page. Tokens and the base
+   controls (.lt-btn, .lt-icon-btn, .lt-mark) live in app/lite/lite.css. */
+
+/* Failed: a red cross (the icon inside), stuck on something the person must
+   fix. Still, like every mark. */
+[data-lite] .lt-mark[data-mark="error"] {
+  color: var(--lt-error);
+}
+[data-lite] .lt-mark[data-mark="error"] svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 3;
+}
+[data-lite] .lt-pill[data-mark="error"] {
+  color: var(--lt-error);
+}
+
+/* ── Needs you ──────────────────────────────────────────────────────────── */
+
+[data-lite] .lt-needs-page {
+  padding-top: 20px;
+  padding-bottom: 48px;
+}
+
+[data-lite] .lt-needs-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  margin: 20px 2px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-needs-head:first-child {
+  margin-top: 0;
+}
+[data-lite] .lt-needs-n {
+  font-variant-numeric: tabular-nums;
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-needs-head[data-attention] .lt-needs-n {
+  color: var(--lt-needs-text);
+}
+/* "Mark all read": a quiet text button at the head's far end. */
+[data-lite] .lt-needs-headbtn {
+  margin-left: auto;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--lt-text-3);
+  transition: background-color 100ms, color 100ms;
+}
+[data-lite] .lt-needs-headbtn:hover {
+  background: var(--lt-hover);
+  color: var(--lt-text);
+}
+
+/* One row: the mark (or a face), what it is and where, what can be done
+   about it, and its age. The row itself holds the keyboard's focus, and
+   wears Lite's focus ring for it. */
+[data-lite] .lt-needs-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+}
+[data-lite] .lt-needs-row:focus-within {
+  background: var(--lt-hover);
+}
+[data-lite] .lt-needs-row > .lt-mark,
+[data-lite] .lt-needs-row > .lt-avatar,
+[data-lite] .lt-needs-glyph {
+  margin-top: 2px;
+}
+[data-lite] .lt-needs-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--lt-accent);
+}
+[data-lite] .lt-needs-glyph svg {
+  width: 14px;
+  height: 14px;
+}
+
+[data-lite] .lt-needs-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+[data-lite] .lt-needs-title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--lt-text);
+}
+[data-lite] a.lt-needs-title:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+[data-lite] .lt-needs-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--lt-text-3);
+}
+/* What a permission prompt would run: the command or the path, one line. */
+[data-lite] .lt-needs-code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-needs-code b {
+  font-weight: 600;
+  color: var(--lt-text);
+}
+[data-lite] .lt-needs-note {
+  font-size: 12.5px;
+  color: var(--lt-text-2);
+}
+
+[data-lite] .lt-needs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+[data-lite] .lt-needs-actions .lt-btn {
+  max-width: 100%;
+}
+[data-lite] .lt-needs-actions .lt-btn > span:not(.lt-needs-key) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-lite] .lt-btn[data-tone="primary"] {
+  border-color: transparent;
+  background: var(--lt-text);
+  color: var(--lt-bg);
+}
+[data-lite] .lt-btn[data-tone="primary"]:hover {
+  background: var(--lt-text);
+  color: var(--lt-bg);
+  opacity: 0.88;
+}
+/* A key's cap shows on the row that holds the focus: only there does the
+   key answer. */
+[data-lite] .lt-needs-key {
+  display: inline-flex;
+}
+[data-lite] .lt-needs-row:not(:focus-within) .lt-needs-key {
+  display: none;
+}
+
+[data-lite] .lt-needs-side {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin: -4px -6px 0 0;
+}
+[data-lite] .lt-needs-side .lt-meta {
+  padding: 0 4px;
+}
+
+[data-lite] .lt-needs-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: min(18vh, 140px);
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-needs-empty svg {
+  width: 20px;
+  height: 20px;
+  color: var(--lt-done);
+}
+[data-lite] .lt-needs-empty h1 {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--lt-text-2);
+}

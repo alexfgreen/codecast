@@ -186,8 +186,15 @@ function CastEntityCard({ type, shortId, convexId }: { type: "task" | "plan" | "
   );
 }
 
+// The standing session a role's send reached, as the CLI printed it.
+function roleSession(output: string): string | null {
+  return output.replace(/\x1b\[[0-9;]*m/g, "").match(/\b(?:sent to|queued for)\s+(jx[a-z0-9]{5,})\b/i)?.[1] ?? null;
+}
+
 // Dedicated rendering for the two session-addressed cast commands:
 //   cast send <id> "<body>"   → outgoing twin of the incoming SessionMessageBlock
+//                               (also `cast send @handle`: a role, whose standing
+//                               session the server picks and the CLI names)
 //   cast read <id> <range>    → compact "read" row with a clickable target pill
 // Both render the target session as an EntityIdPill (clickable card), so they read
 // as conversations between sessions rather than opaque shell invocations.
@@ -198,12 +205,20 @@ function CastSessionRefBlock({ cat, target, args, rawCmd, output, isError }: {
 
   if (cat === "send") {
     const { body, kind } = extractSendBody(args);
+    const reached = target.startsWith("@") ? roleSession(output) : null;
     return (
       <div className="my-2 mx-1 rounded border-l-2 border-sol-blue/60 bg-sol-blue/5">
         <div className="flex items-center gap-2 px-3 pt-2 pb-1">
           <CornerUpRight className="w-3.5 h-3.5 text-sol-blue/70 shrink-0" />
           <span className="text-[11px] font-medium tracking-wide uppercase text-sol-blue/70 shrink-0">Message to</span>
-          <EntityIdPill shortId={target} />
+          {target.startsWith("@") ? (
+            <>
+              <span className="font-mono text-[11px] text-sol-blue/80 shrink-0">{target}</span>
+              {reached && <EntityIdPill shortId={reached} />}
+            </>
+          ) : (
+            <EntityIdPill shortId={target} />
+          )}
           {isError ? (
             <span className="text-sol-red/80 text-[10px] ml-auto shrink-0">failed</span>
           ) : (
@@ -844,6 +859,12 @@ export function CastCommandBlock({ tool, result, images, globalImageMap, convers
   const sessionTarget = (cat === "send" || cat === "read") && /^jx[a-z0-9]{5,}$/i.test(subcommand) ? subcommand : null;
   if (sessionTarget) {
     return <CastSessionRefBlock cat={cat} target={sessionTarget} args={args} rawCmd={cast.raw} output={output} isError={!!isError} />;
+  }
+  // `cast send @handle "…"` messages a role. A handle is no word to the
+  // command parser, so the subcommand slot is empty and it leads the args.
+  const roleTarget = cat === "send" && !subcommand ? args.match(/^@[\w.-]+(?=\s|$)/)?.[0] : undefined;
+  if (roleTarget) {
+    return <CastSessionRefBlock cat={cat} target={roleTarget} args={args.slice(roleTarget.length)} rawCmd={cast.raw} output={output} isError={!!isError} />;
   }
   // `cast chat reply <id> "…"` / `cast chat send "…" --channel <id>` — the
   // agent's side of a team-chat exchange, rendered as the outgoing twin of the

@@ -13,6 +13,11 @@
 // A new session mounts under its stub id and keeps this mount when the real
 // id lands (the page passes the live id down without a new key): the height
 // cache and the list's landing stay those of the first id it opened with.
+//
+// The thread feeds the session's comments into the store once (the classic
+// conversation view's feeder), counts them per message for the rows' badges,
+// and holds which rows have their comment thread open, which reaches the
+// height cache through the variant key like any other open row.
 import "./thread.css";
 import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -24,6 +29,7 @@ import { useQueryNoThrow } from "../../../hooks/useQueryNoThrow";
 import { isConvexId, useInboxStore } from "../../../store/inboxStore";
 import { shareTokenArg } from "../../../lib/shareTokenScope";
 import { useBottomAnchoredList } from "../../../hooks/useBottomAnchoredList";
+import { useConversationCommentRows, useConversationCommentsSync } from "../../../hooks/useConversationCommentsSync";
 import { useManagedSessionFields } from "../../../hooks/useManagedSessionFields";
 import { isActiveAgentStatus, type LiveAgentStatus } from "../../../lib/pendingBanner";
 import { useShortcutAction, useShortcutContext } from "../../../shortcuts";
@@ -73,6 +79,26 @@ export function LiteThread({ sessionId }: { sessionId: string }) {
     });
   }, []);
 
+  // Comments: the feed, each message's count, and the rows whose thread is open.
+  useConversationCommentsSync(sessionId);
+  const commentRows = useConversationCommentRows(sessionId);
+  const commentCounts = useMemo(() => {
+    const byMessage = new Map<string, number>();
+    for (const c of commentRows) if (c.message_id) byMessage.set(c.message_id, (byMessage.get(c.message_id) ?? 0) + 1);
+    return byMessage;
+  }, [commentRows]);
+  const [commenting, setCommenting] = useState<ReadonlySet<string>>(() => new Set());
+  const onComment = useCallback((key: string) => {
+    setCommenting((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
+  }, []);
+  // A message takes a comment once the server has it, in a session it has,
+  // from a viewer it knows.
+  const canComment = isConvexId(sessionId) && !!access.meId;
+
   const built = useMemo(
     () => buildLiteRows(messages, { agentType, active, blocked, parentConversationId: parentId, hasMoreAbove }),
     [messages, agentType, active, blocked, parentId, hasMoreAbove],
@@ -89,10 +115,11 @@ export function LiteThread({ sessionId }: { sessionId: string }) {
     getItemKey: (i) => rows[i]?.key ?? String(i),
     estimateSize: (i) => estimateLiteRow(rows[i], !!rows[i] && open.has(rows[i].key)),
     cacheNamespace: `lite:${mountId}`,
-    // An open row and its closed self are two heights; nesting changes the width.
+    // An open row and its closed self are two heights, and so is a row with
+    // its comment thread open; nesting changes the width.
     rowVariantKey: (i) => {
       const r = rows[i];
-      return r ? `${open.has(r.key) ? "o" : "c"}${r.depth}` : "x";
+      return r ? `${open.has(r.key) ? "o" : "c"}${r.depth}${commenting.has(r.key) ? "t" : ""}` : "x";
     },
     paddingStart: 16,
     paddingEnd: 16,
@@ -138,6 +165,7 @@ export function LiteThread({ sessionId }: { sessionId: string }) {
               // React 19 refuses a key through a spread. The hook's own style
               // places rows with a transform; Lite places them by `top`.
               const { key, style: _transform, ...rowProps } = list.rowProps({ index: item.index, key: item.key as string | number, start: item.start });
+              const messageId = canComment && (row.kind === "user" || row.kind === "text") && isConvexId(row.message._id) ? row.message._id : null;
               return (
                 <div key={key} {...rowProps} style={{ position: "absolute", top: item.start, left: 0, width: "100%" }}>
                   <LiteRowView
@@ -150,6 +178,9 @@ export function LiteThread({ sessionId }: { sessionId: string }) {
                     isOwner={access.isOwner}
                     ownerId={access.ownerId}
                     ownerName={access.ownerName}
+                    commentCount={messageId ? commentCounts.get(messageId) ?? 0 : 0}
+                    commentOpen={commenting.has(row.key)}
+                    onComment={messageId ? onComment : undefined}
                   />
                 </div>
               );
