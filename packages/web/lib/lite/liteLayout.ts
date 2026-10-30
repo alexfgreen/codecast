@@ -29,7 +29,18 @@ export type LiteLayoutState = {
   /** The right panel's slot while it docks. A page's LiteRightPanel draws
    *  into it; null until the frame has mounted, and while it is a sheet. */
   rightPanelHost: HTMLElement | null;
+  /** Which of the right panel's tabs shows: the session's changes or its task. */
+  rightPanelTab: LiteRightPanelTab;
+  setRightPanelTab: (tab: LiteRightPanelTab) => void;
+  /** A file the changes tab should bring into view, and a nonce so asking
+   *  for the same file twice scrolls to it twice. */
+  rightPanelFocus: { file: string; nonce: number } | null;
+  /** Open the right panel on a tab, optionally at one changed file (an edit
+   *  row's "open in changes"). */
+  openRightPanel: (tab: LiteRightPanelTab, opts?: { file?: string }) => void;
 };
+
+export type LiteRightPanelTab = "changes" | "task";
 
 const noop = () => {};
 const OUTSIDE: LiteLayoutState = {
@@ -45,6 +56,10 @@ const OUTSIDE: LiteLayoutState = {
   setPaletteOpen: noop,
   togglePalette: noop,
   rightPanelHost: null,
+  rightPanelTab: "changes",
+  setRightPanelTab: noop,
+  rightPanelFocus: null,
+  openRightPanel: noop,
 };
 
 export const LiteLayoutCtx = createContext<LiteLayoutState | null>(null);

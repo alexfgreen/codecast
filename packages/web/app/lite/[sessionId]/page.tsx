@@ -12,7 +12,7 @@ import { useLiteLayout } from "@/lib/lite/liteLayout";
 import { useLiteSidebarModel } from "@/lib/lite/useLiteSidebar";
 import { liteProjectOf, type LiteMark } from "@/lib/lite/sidebarModel";
 import { LiteTopbar } from "@/components/lite/LiteTopbar";
-import { LiteRightPanel } from "@/components/lite/LiteRightPanel";
+import { LiteSessionPanel } from "@/components/lite/panel/LiteSessionPanel";
 import { LiteStatusMark } from "@/components/lite/LiteSidebarRows";
 import { ShortcutTooltip } from "@/components/KeyboardShortcutsHelp";
 
@@ -42,11 +42,7 @@ export default function LiteSessionPage() {
           <div data-lite-placeholder="">Conversation view lands in wave 2</div>
         </div>
       </div>
-      <LiteRightPanel title="Changes">
-        <div className="p-4">
-          <div data-lite-placeholder="">Changes land in wave 3</div>
-        </div>
-      </LiteRightPanel>
+      <LiteSessionPanel sessionId={id} />
     </>
   );
 }

@@ -8,7 +8,7 @@
 // palette always start closed.
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useIsPhone, useMinWidth } from "../../hooks/useIsPhone";
-import { LiteLayoutCtx, readLitePref, writeLitePref, type LiteLayoutState } from "../../lib/lite/liteLayout";
+import { LiteLayoutCtx, readLitePref, writeLitePref, type LiteLayoutState, type LiteRightPanelTab } from "../../lib/lite/liteLayout";
 
 const SIDEBAR_PREF = "sidebarOpen";
 const RIGHT_PANEL_PREF = "rightPanelOpen";
@@ -44,6 +44,13 @@ export function LiteLayoutProvider({ rightPanelHost, children }: { rightPanelHos
     if (!rightPanelSheet) writeLitePref(RIGHT_PANEL_PREF, open);
   }, [rightPanelSheet]);
   const toggleRightPanel = useCallback(() => setRightPanelOpen(!rightPanelOpen), [setRightPanelOpen, rightPanelOpen]);
+  const [rightPanelTab, setRightPanelTab] = useState<LiteRightPanelTab>("changes");
+  const [rightPanelFocus, setRightPanelFocus] = useState<{ file: string; nonce: number } | null>(null);
+  const openRightPanel = useCallback((tab: LiteRightPanelTab, opts?: { file?: string }) => {
+    setRightPanelTab(tab);
+    if (opts?.file) setRightPanelFocus((prev) => ({ file: opts.file!, nonce: (prev?.nonce ?? 0) + 1 }));
+    setRightPanelOpen(true);
+  }, [setRightPanelOpen]);
 
   // The palette opens over everything. The phone drawer and a right-panel
   // sheet are modal dialogs that trap focus and make the rest of the page
@@ -70,7 +77,11 @@ export function LiteLayoutProvider({ rightPanelHost, children }: { rightPanelHos
     setPaletteOpen,
     togglePalette,
     rightPanelHost: rightPanelSheet ? null : rightPanelHost,
-  }), [isPhone, sidebarOpen, setSidebarOpen, toggleSidebar, rightPanelOpen, setRightPanelOpen, toggleRightPanel, rightPanelSheet, paletteOpen, setPaletteOpen, togglePalette, rightPanelHost]);
+    rightPanelTab,
+    setRightPanelTab,
+    rightPanelFocus,
+    openRightPanel,
+  }), [isPhone, sidebarOpen, setSidebarOpen, toggleSidebar, rightPanelOpen, setRightPanelOpen, toggleRightPanel, rightPanelSheet, paletteOpen, setPaletteOpen, togglePalette, rightPanelHost, rightPanelTab, rightPanelFocus, openRightPanel]);
 
   return <LiteLayoutCtx.Provider value={value}>{children}</LiteLayoutCtx.Provider>;
 }
