@@ -14,8 +14,12 @@
 //
 // On a phone the composer rests as one line (MessageInput's own resting
 // pill) until it is tapped; wider, it is the full box.
+//
+// While it draws its text box, the composer is reachable from outside it
+// (lib/lite/composerHandle): the header's "Message another agent…" fills the
+// box through MessageInput's own populate hook and puts the caret at its end.
 import "./thread.css";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { useShallow } from "zustand/react/shallow";
 import { useInboxStore } from "../../../store/inboxStore";
@@ -26,6 +30,8 @@ import { usePendingPermissions } from "../../../hooks/useSyncPendingPermissions"
 import { usePendingDecisionItems } from "../../../hooks/useDecisionQueue";
 import { animatedHideSession } from "../../../store/undoActions";
 import { useLiteSessionAccess } from "../../../lib/lite/threadAccess";
+import { registerLiteComposerHandle } from "../../../lib/lite/composerHandle";
+import { useWatchEffect } from "../../../hooks/useWatchEffect";
 import type { ConversationData } from "../../conversation/types";
 import { MessageInput } from "../../MessageInput";
 import { HeaderModelControl } from "../../SessionControlMenu";
@@ -72,6 +78,28 @@ export function LiteComposer({ sessionId }: { sessionId: string }) {
   const decisions = usePendingDecisionItems(sessionId);
   const decision = decisions[0] ?? null;
 
+  // The handle others fill the box through, held while the box is drawn.
+  const populateRef = useRef<((text: string, opts?: { append?: boolean }) => void) | null>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const drawsBox = access.known && !access.shared && access.canSend && permissions.length === 0;
+  useWatchEffect(() => {
+    if (!drawsBox) return;
+    // The caret at the end, after MessageInput's own select-all lands.
+    const focusBox = () => {
+      const el = boxRef.current?.querySelector("textarea");
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    };
+    return registerLiteComposerHandle(sessionId, {
+      populate: (text) => {
+        populateRef.current?.(text);
+        setTimeout(focusBox, 0);
+      },
+      focus: focusBox,
+    });
+  }, [sessionId, drawsBox]);
+
   const sessionControl = useMemo(() => (
     <HeaderModelControl
       variant="composer"
@@ -101,7 +129,7 @@ export function LiteComposer({ sessionId }: { sessionId: string }) {
   }
 
   return (
-    <div className="lt-composer">
+    <div className="lt-composer" ref={boxRef}>
       {decision && <LiteDecisionCard key={decision.key} item={decision} more={decisions.length - 1} />}
       {permissions.length > 0 ? (
         <PermissionStack
@@ -130,6 +158,7 @@ export function LiteComposer({ sessionId }: { sessionId: string }) {
           onSendEscape={access.isOwner ? onEscape : undefined}
           onSendAndDismiss={stash}
           sessionControl={sessionControl}
+          onPopulateInput={populateRef}
           composerPlaceholder={access.isOwner ? undefined : `Message ${access.ownerFirstName ? `${access.ownerFirstName}'s` : "their"} agent`}
           // A blocking ask takes focus first, so its digits answer.
           autoFocusInput={!decision?.blocking}

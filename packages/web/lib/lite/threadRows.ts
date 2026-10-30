@@ -83,7 +83,11 @@ export type LiteRow =
       images: ImageData[];
       ts: number;
     }
-  | { kind: "session_message"; key: string; message: Message; from: string; name?: string; body: string; variant?: "agent"; ts: number }
+  /** Another session's words (`cast send`), or a subagent's report
+   *  (`variant: "agent"`). `from` is the wire's reference (a short id, or a
+   *  subagent's name); `fromId` the sender's Convex id where the thread knows
+   *  it (a subagent's opening brief is its parent's message). */
+  | { kind: "session_message"; key: string; message: Message; from: string; fromId?: string; name?: string; body: string; variant?: "agent"; ts: number }
   /** `body`: what a compaction kept, behind the divider (it opens). */
   | { kind: "divider"; key: string; tone: LiteDividerTone; label: string; body?: string; ts: number }
   /** What woke the agent (a chat line, a schedule, a background task): the classic block. */
@@ -395,7 +399,10 @@ export function buildLiteRows(messages: readonly Message[], opts: LiteRowsOption
       } else if (WAKE_KINDS.has(k.kind)) {
         push({ kind: "wake", key, message: m, wake: k as LiteWakeKind, ts: m.timestamp, prompt: true });
       } else if (k.kind === "session_message") {
-        push({ kind: "session_message", key, message: m, from: k.from, name: k.name, body: k.body, variant: k.variant, ts: m.timestamp, prompt: true });
+        // A subagent's brief names its parent by the head of its id (userRowKinds).
+        const parent = opts.parentConversationId;
+        const fromId = parent && k.from === parent.slice(0, 7) ? parent : undefined;
+        push({ kind: "session_message", key, message: m, from: k.from, fromId, name: k.name, body: k.body, variant: k.variant, ts: m.timestamp, prompt: true });
       } else if (k.kind === "interrupt") {
         push({ kind: "divider", key, tone: "interrupt", label: "Interrupted", ts: m.timestamp });
       } else if (k.kind === "agent_switch") {
@@ -639,7 +646,7 @@ function sameRow(a: LiteVisibleRow, b: LiteVisibleRow): boolean {
       return sameMessage(a.message, u.message) && a.body === u.body && a.author === u.author && a.decision?.question === u.decision?.question;
     }
     case "session_message":
-      return sameMessage(a.message, (b as typeof a).message) && a.body === (b as typeof a).body;
+      return sameMessage(a.message, (b as typeof a).message) && a.body === (b as typeof a).body && a.fromId === (b as typeof a).fromId;
     case "text":
       return sameMessage(a.message, (b as typeof a).message) && a.content === (b as typeof a).content && a.error === (b as typeof a).error;
     case "wake":
