@@ -1,15 +1,13 @@
-// /lite: Lite's home. With no session open it offers the few worth opening:
-// the ones waiting on you first, then the most recent. With none at all, the
-// way to start one: Lite has no composer until the conversation wave, so a
-// first session starts in the classic app.
+// /lite: Lite's home, and where a new session starts. The composer is the
+// page's centre (LiteNewSession); under it, the few sessions worth opening:
+// the ones waiting on you first, then the most recent.
 import { useMemo } from "react";
-import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
 import { useCoarseNow } from "@/hooks/useCoarseNow";
 import { useLiteSidebarModel } from "@/lib/lite/useLiteSidebar";
 import { liteAge } from "@/lib/lite/sidebarModel";
 import { LiteTopbar } from "@/components/lite/LiteTopbar";
 import { LiteSessionRow } from "@/components/lite/LiteSidebarRows";
+import { LiteNewSession } from "@/components/lite/thread/LiteNewSession";
 
 const SHOWN = 5;
 
@@ -26,31 +24,22 @@ export default function LiteHomePage() {
   return (
     <>
       <LiteTopbar>
-        <span className="text-[14px] font-medium">Home</span>
+        <span className="text-[14px] font-medium">New session</span>
       </LiteTopbar>
       <div className="lt-scroll">
-        <div className="lt-content lt-empty">
-          {rows.length > 0 ? (
-            <>
-              <h1>Recent sessions</h1>
-              <div className="lt-list" role="list" aria-label="Recent sessions">
+        <div className="lt-content">
+          <LiteNewSession />
+          {rows.length > 0 && (
+            <section className="lt-hero-recent" aria-label="Recent sessions">
+              <h2>Recent</h2>
+              <div className="lt-list" role="list">
                 {rows.map((row) => (
                   <div role="listitem" key={row.id}>
                     <LiteSessionRow id={row.id} title={row.title} mark={row.mark} machine={row.machine} age={liteAge(row.activityAt, now)} active={false} />
                   </div>
                 ))}
               </div>
-            </>
-          ) : (
-            <>
-              <h1>No sessions yet</h1>
-              <div>
-                <Link href="/inbox" className="lt-btn">
-                  Start one in classic
-                  <ArrowUpRight aria-hidden />
-                </Link>
-              </div>
-            </>
+            </section>
           )}
         </div>
       </div>

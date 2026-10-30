@@ -42,8 +42,11 @@ export function LiteShortcuts() {
     if (!model.onTeam) return false;
     navigate("/lite/team");
   });
-  // Lite has no composer until the conversation wave, so it declines the key
-  // rather than lead somewhere that cannot start a session.
-  useShortcutAction("lite.newSession", () => false);
+  // A new session starts on Lite's home, whose composer takes focus on every
+  // arrival (components/lite/thread/LiteNewSession), so the key works from
+  // the home page too.
+  useShortcutAction("lite.newSession", () => {
+    navigate("/lite", { replace: window.location.pathname === "/lite" });
+  });
   return null;
 }
