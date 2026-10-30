@@ -1,0 +1,41 @@
+/* Comment threads inside Codecast Lite: under a message in the thread, and
+   under a line of a diff. The classic thread and its cards are reused whole
+   (components/comments, styled in app/globals.css); Lite gives them its own
+   frame and type. Scoped under [data-lite]; nothing here is a layer or runs
+   forever (the typing budget). */
+
+[data-lite] .lt-cmt {
+  margin-top: 6px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-raised);
+  font-family: var(--lt-font);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--lt-text);
+  text-align: left;
+  white-space: normal;
+}
+[data-lite] .lt-cmt .cc-thread-list {
+  max-height: 360px;
+  scrollbar-width: thin;
+}
+[data-lite] .lt-cmt .cc-comment-btn {
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-cmt .cc-comment-btn:hover {
+  background: var(--lt-hover);
+  color: var(--lt-text);
+}
+
+/* Under a diff line: the line's own gutter sits left of it. */
+[data-lite] .lt-cmt-line {
+  margin: 6px 8px;
+}
+[data-lite] .lt-cmt-anchor {
+  padding: 2px 4px 0;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--lt-text-3);
+}

@@ -73,7 +73,7 @@ export function LiteSidebar() {
           icon={<Diamond className="w-3.5 h-3.5" />}
           label="Needs you"
           count={model.needsYouCount}
-          attention={model.needsYouCount > 0}
+          attention={model.needsYouAttention}
           active={pathname === "/lite/needs-you"}
         />
         {model.onTeam && (

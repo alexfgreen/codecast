@@ -3,9 +3,8 @@ import {
   groupLiteProjects,
   groupLiteTeammates,
   liteAge,
+  liteMarkLabel,
   liteMarkOf,
-  liteNeedsYouCount,
-  liteNeedsYouItems,
   liteProjectOf,
   liteSidebarOrder,
   liteStep,
@@ -24,32 +23,72 @@ function row(id: string, project: string, sortAt: number, mark: LiteMark = null)
 }
 
 describe("liteMarkOf", () => {
-  it("an ask aimed at the person needs them, whatever the agent is doing", () => {
-    expect(liteMarkOf("questions", null, false)).toBe("needs");
-    expect(liteMarkOf("needsInput", null, false)).toBe("needs");
+  const quiet = { unread: false, failed: false };
+
+  it("only an ask aimed at the person needs them, whatever the agent is doing", () => {
+    expect(liteMarkOf("questions", quiet)).toBe("needs");
+    expect(liteMarkOf("questions", { workState: "working", unread: true, failed: true })).toBe("needs");
   });
 
-  it("marks working, and done only until it is read", () => {
-    expect(liteMarkOf("working", null, true)).toBe("working");
-    expect(liteMarkOf("done", null, true)).toBe("done");
-    expect(liteMarkOf("done", null, false)).toBeNull();
+  it("a finished turn waiting for the person's next step is quiet once read, and done until then", () => {
+    // The inbox files every finished, undismissed session under needsInput:
+    // that alone is the steady state, not a claim on the person.
+    expect(liteMarkOf("needsInput", quiet)).toBeNull();
+    expect(liteMarkOf("needsInput", { unread: true, failed: false })).toBe("done");
+    expect(liteMarkOf("done", { unread: true, failed: false })).toBe("done");
+    expect(liteMarkOf("done", quiet)).toBeNull();
+    expect(liteMarkOf("dormant", { unread: true, failed: false })).toBe("done");
+    expect(liteMarkOf("dormant", quiet)).toBeNull();
+  });
+
+  it("a row stuck on a failure says so, read or not", () => {
+    expect(liteMarkOf("needsInput", { unread: false, failed: true })).toBe("error");
+    expect(liteMarkOf("needsInput", { unread: true, failed: true })).toBe("error");
+  });
+
+  it("a failure counts only where the row waits on input: the person's own verdict files it elsewhere", () => {
+    expect(liteMarkOf("done", { unread: false, failed: true })).toBeNull();
+    expect(liteMarkOf("dormant", { unread: true, failed: true })).toBe("done");
+  });
+
+  it("marks working, unread or not", () => {
+    expect(liteMarkOf("working", quiet)).toBe("working");
+    expect(liteMarkOf("working", { unread: true, failed: false })).toBe("working");
   });
 
   it("a pinned, new or set-aside row reads its own state", () => {
-    expect(liteMarkOf("pinned", "needs_input", false)).toBe("needs");
-    expect(liteMarkOf("pinned", "working", false)).toBe("working");
-    expect(liteMarkOf("shelved", "done", true)).toBe("done");
-    expect(liteMarkOf("newSessions", "idle", true)).toBeNull();
+    expect(liteMarkOf("pinned", { workState: "working", unread: false, failed: false })).toBe("working");
+    expect(liteMarkOf("pinned", { workState: "needs_input", unread: false, failed: false })).toBeNull();
+    expect(liteMarkOf("pinned", { workState: "needs_input", unread: false, failed: true })).toBe("error");
+    expect(liteMarkOf("shelved", { workState: "done", unread: true, failed: false })).toBe("done");
+    expect(liteMarkOf("newSessions", { workState: "idle", unread: false, failed: false })).toBeNull();
   });
 
-  it("says nothing for a parked row", () => {
-    expect(liteMarkOf("dormant", "dormant", true)).toBeNull();
+  it("the section's state wins over the row's own", () => {
+    expect(liteMarkOf("working", { workState: "needs_input", unread: false, failed: true })).toBe("working");
   });
 
-  it("a teammate's row shows what it is doing, never an unread mark, and waits on its owner, not on you", () => {
-    expect(liteTeammateMarkOf("needs_input")).toBe("waiting");
-    expect(liteTeammateMarkOf("working")).toBe("working");
-    expect(liteTeammateMarkOf("done")).toBeNull();
+  it("a teammate's row shows what it is doing, never an unread mark, and waits on its owner only when it asks", () => {
+    expect(liteTeammateMarkOf("needs_input", true)).toBe("waiting");
+    expect(liteTeammateMarkOf("needs_input", false)).toBeNull();
+    expect(liteTeammateMarkOf("working", false)).toBe("working");
+    expect(liteTeammateMarkOf("done", false)).toBeNull();
+  });
+});
+
+describe("liteMarkLabel", () => {
+  it("says each mark in the words a pill shows", () => {
+    expect(liteMarkLabel("needs")).toBe("Needs you");
+    expect(liteMarkLabel("error")).toBe("Failed");
+    expect(liteMarkLabel("done")).toBe("Done");
+    expect(liteMarkLabel("working")).toBe("Working");
+    expect(liteMarkLabel(null)).toBeNull();
+  });
+
+  it("names who a teammate's session waits on by their first name", () => {
+    expect(liteMarkLabel("waiting", "Maya Kim")).toBe("Waiting on Maya");
+    expect(liteMarkLabel("waiting", "  ")).toBe("Waiting on its owner");
+    expect(liteMarkLabel("waiting")).toBe("Waiting on its owner");
   });
 });
 
@@ -89,13 +128,20 @@ describe("groupLiteProjects", () => {
     expect(groupLiteProjects([a, b])[0]!.all.map((r) => r.id)).toEqual(["a", "b"]);
   });
 
-  it("caps a project's rows, but never hides one that needs you or the one open", () => {
-    const rows = Array.from({ length: 12 }, (_, i) => row(`r${i}`, "big", 100 - i));
+  it("caps a project's rows, but never hides one that needs you, one that failed, or the one open", () => {
+    const rows = Array.from({ length: 13 }, (_, i) => row(`r${i}`, "big", 100 - i));
     rows[10] = { ...rows[10]!, mark: "needs" };
+    rows[12] = { ...rows[12]!, mark: "error" };
     const [g] = groupLiteProjects(rows, { cap: 8, activeId: "r11" });
-    expect(g!.shown.map((r) => r.id)).toEqual(["r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r10", "r11"]);
+    expect(g!.shown.map((r) => r.id)).toEqual(["r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r10", "r11", "r12"]);
     expect(g!.hiddenCount).toBe(2);
     expect(g!.mark).toBe("needs");
+  });
+
+  it("a done row past the cap stays in the rest", () => {
+    const rows = Array.from({ length: 10 }, (_, i) => row(`r${i}`, "big", 100 - i, i === 9 ? "done" : null));
+    const [g] = groupLiteProjects(rows, { cap: 8 });
+    expect(g!.shown.map((r) => r.id)).not.toContain("r9");
   });
 
   it("shows every row of a project the person opened in full", () => {
@@ -157,10 +203,12 @@ describe("groupLiteTeammates", () => {
 });
 
 describe("strongestMark", () => {
-  it("needs you outranks unread, which outranks waiting on someone else and working", () => {
+  it("needs you outranks failed, then unread, then waiting on someone else, then working", () => {
     expect(strongestMark(["working", "done", null])).toBe("done");
     expect(strongestMark(["working", "waiting"])).toBe("waiting");
     expect(strongestMark(["working", "needs", "done"])).toBe("needs");
+    expect(strongestMark(["done", "error", "working"])).toBe("error");
+    expect(strongestMark(["error", "needs"])).toBe("needs");
     expect(strongestMark([null, null])).toBeNull();
   });
 });
@@ -177,28 +225,5 @@ describe("liteAge", () => {
   it("says nothing for a row with no activity stamp", () => {
     expect(liteAge(0, now)).toBe("");
     expect(liteAge(undefined, now)).toBe("");
-  });
-});
-
-describe("liteNeedsYouItems", () => {
-  const asks = [
-    { key: "k1", conversationId: "a", question: "Ship it?" },
-    { key: "k2", conversationId: "a", question: "Which branch?" },
-    { key: "k3", conversationId: "b", question: "" },
-  ];
-  const waiting = [{ _id: "a" }, { _id: "c" }];
-
-  it("lists each ask first, then each waiting session the asks do not already hold", () => {
-    expect(liteNeedsYouItems(asks, waiting)).toEqual([
-      { key: "ask:k1", sessionId: "a", question: "Ship it?" },
-      { key: "ask:k2", sessionId: "a", question: "Which branch?" },
-      { key: "ask:k3", sessionId: "b", question: null },
-      { key: "session:c", sessionId: "c", question: null },
-    ]);
-  });
-
-  it("the count is the list's length", () => {
-    expect(liteNeedsYouCount(asks, waiting)).toBe(4);
-    expect(liteNeedsYouCount([], [])).toBe(0);
   });
 });

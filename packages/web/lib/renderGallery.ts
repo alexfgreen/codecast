@@ -449,6 +449,7 @@ export function renderGalleryMessages(now: number): Row[] {
   section("cast commands");
   sh('cast send jx7bm3n "Parser cost on open is **under 2ms**; no action needed."', "sent to jx7bm3n");
   sh("cast send jx7bm3n \"$(cat /tmp/brief.md)\"", "sent to jx7bm3n");
+  sh('cast send @eng "Can you take the flaky auth test?"', "\x1b[32m✓\x1b[0m sent to \x1b[36mjx7bm3n\x1b[0m from jx7abcd");
   sh("cast read jx7bm3n 560:579", "560: [assistant] Done.");
   sh('cast task create "Port mermaid diagrams to mobile" -p low -d "Web transcripts do not draw mermaid either."', "Created task ct-61002: Port mermaid diagrams to mobile");
   sh('cast task comment ct-61002 "Measured: 2ms per open." -t progress', "Comment added to ct-61002");
