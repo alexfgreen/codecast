@@ -14,6 +14,7 @@ export type LiteKey = {
 
 export const LITE_KEYS: readonly LiteKey[] = [
   { action: "palette.toggle", label: "Search and actions" },
+  { action: "lite.newSession", label: "New session" },
   { action: "session.next", label: "Next session" },
   { action: "session.prev", label: "Previous session" },
   { action: "lite.needsYou", label: "Needs you" },

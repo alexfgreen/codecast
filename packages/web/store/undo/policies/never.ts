@@ -33,6 +33,7 @@ export const NEVER_UNDO_POLICY: UndoPolicy = {
   selectPanelSession: NAVIGATION,
   switchTab: NAVIGATION,
   touchMru: NAVIGATION,
+  recordRecentVisit: NAVIGATION,
   requestAccountSwitch: NAVIGATION,
 
   // Layout

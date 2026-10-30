@@ -1,0 +1,394 @@
+/* The Lite session panel (components/lite/panel): its tabs, the changes
+   tab's scope bar, file rows and commits, and the task tab. Scoped under
+   [data-lite] as lite.css is; the panel draws into the shell's slot or the
+   sheet, and both carry the attribute. The tabs and the scope bar stay put
+   while the files scroll under them (sticky, never a transform), and nothing
+   here animates. */
+
+[data-lite] .lt-panel {
+  /* How tall the tab strip is, so the bar below it and a file brought into
+     view both clear it. None while there is no strip. */
+  --lt-tabs-h: 0px;
+  --lt-bar-h: 40px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  font-size: 13px;
+}
+[data-lite] .lt-panel[data-tabs] {
+  --lt-tabs-h: 36px;
+}
+
+/* ── Tabs ───────────────────────────────────────────────────────────────── */
+
+[data-lite] .lt-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--lt-tabs-h);
+  flex-shrink: 0;
+  padding: 0 8px;
+  background: var(--lt-bg);
+  border-bottom: 1px solid var(--lt-border);
+}
+[data-lite] .lt-tab {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--lt-text-3);
+  transition: background-color 120ms, color 120ms;
+}
+[data-lite] .lt-tab:hover {
+  background: var(--lt-hover);
+  color: var(--lt-text);
+}
+[data-lite] .lt-tab[aria-selected="true"] {
+  background: var(--lt-active);
+  box-shadow: var(--lt-active-ring);
+  color: var(--lt-text);
+  font-weight: 500;
+}
+
+[data-lite] .lt-tabpanel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Changes: the scope bar ─────────────────────────────────────────────── */
+
+[data-lite] .lt-diff-bar {
+  position: sticky;
+  top: var(--lt-tabs-h);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--lt-bar-h);
+  flex-shrink: 0;
+  padding: 0 12px 0 6px;
+  background: var(--lt-bg);
+  border-bottom: 1px solid var(--lt-border);
+}
+[data-lite] .lt-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  flex-shrink: 0;
+  padding: 0 6px 0 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--lt-text);
+  white-space: nowrap;
+  transition: background-color 120ms;
+}
+[data-lite] .lt-scope:hover,
+[data-lite] .lt-scope[data-state="open"] {
+  background: var(--lt-hover);
+}
+[data-lite] .lt-scope svg {
+  width: 14px;
+  height: 14px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-menu-item[data-disabled] {
+  color: var(--lt-text-3);
+  opacity: 0.6;
+}
+
+[data-lite] .lt-diff-sum {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--lt-text-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* +/− counts: mono, in the done and error hues' text-safe shades. */
+[data-lite] .lt-add,
+[data-lite] .lt-del {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+[data-lite] .lt-add {
+  color: var(--lt-done-text);
+}
+[data-lite] .lt-del {
+  color: var(--lt-error);
+}
+
+/* ── Changes: file rows ─────────────────────────────────────────────────── */
+
+[data-lite] .lt-files {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+[data-lite] .lt-file {
+  /* A file brought into view lands below the tabs and the scope bar. */
+  scroll-margin-top: calc(var(--lt-tabs-h) + var(--lt-bar-h));
+}
+[data-lite] .lt-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--lt-text-2);
+  text-align: left;
+  transition: background-color 100ms, color 100ms;
+}
+[data-lite] button.lt-file-row:hover,
+[data-lite] .lt-file[data-open] > .lt-file-row {
+  background: var(--lt-hover);
+  color: var(--lt-text);
+}
+[data-lite] .lt-file-status {
+  width: 12px;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-file-status[data-status="A"] {
+  color: var(--lt-done-text);
+}
+[data-lite] .lt-file-status[data-status="D"] {
+  color: var(--lt-error);
+}
+[data-lite] .lt-file-status[data-status="M"] {
+  color: var(--lt-needs-text);
+}
+[data-lite] .lt-file-status[data-status="R"] {
+  color: var(--lt-accent);
+}
+
+/* The folder gives way before the name: a long path reads
+   "packages/web/comp…/LiteFileDiff.tsx", never loses its file. */
+[data-lite] .lt-path {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+[data-lite] .lt-path-dir {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-path-base {
+  flex: 0 0 auto;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-lite] .lt-file-tag {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-file-stat {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+[data-lite] .lt-file-diff {
+  padding: 4px 8px 12px;
+  border-bottom: 1px solid var(--lt-border);
+}
+[data-lite] .lt-file-none {
+  padding: 8px 4px;
+  font-size: 12px;
+  color: var(--lt-text-3);
+}
+
+/* A place held for what is still on its way: a still bar, never a shimmer. */
+[data-lite] .lt-skel {
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--lt-hover);
+}
+[data-lite] .lt-skel-stat {
+  width: 40px;
+  flex-shrink: 0;
+}
+
+[data-lite] .lt-panel-empty {
+  padding: 32px 16px;
+  font-size: 13px;
+  text-align: center;
+  color: var(--lt-text-3);
+}
+
+/* ── Changes: commits ───────────────────────────────────────────────────── */
+
+[data-lite] .lt-commits {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0 12px;
+  border-top: 1px solid var(--lt-border);
+}
+[data-lite] .lt-panel-label {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-commit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--lt-text-2);
+  transition: background-color 100ms, color 100ms;
+}
+[data-lite] a.lt-commit:hover {
+  background: var(--lt-hover);
+  color: var(--lt-text);
+}
+[data-lite] .lt-commit-sha {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-commit-subject {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Task ───────────────────────────────────────────────────────────────── */
+
+[data-lite] .lt-task {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 14px 20px;
+}
+[data-lite] .lt-task-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+[data-lite] .lt-task-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--lt-text);
+  overflow-wrap: anywhere;
+}
+[data-lite] .lt-task-id {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-task-props {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  /* The status picker's own padding lines its icon up with the title. */
+  margin-left: -8px;
+}
+[data-lite] .lt-task-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-task-tally {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-task-bar {
+  flex: 1;
+  max-width: 120px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--lt-hover);
+}
+[data-lite] .lt-task-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--lt-done);
+}
+[data-lite] .lt-task-desc > summary {
+  cursor: pointer;
+  width: fit-content;
+  font-size: 12px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-task-desc > summary:hover {
+  color: var(--lt-text);
+}
+[data-lite] .lt-task-md {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--lt-text-2);
+  overflow-wrap: anywhere;
+}
+
+/* ── Phone ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 767px) {
+  [data-lite] .lt-panel[data-tabs] {
+    --lt-tabs-h: 44px;
+  }
+  [data-lite] .lt-panel {
+    --lt-bar-h: 44px;
+  }
+  [data-lite] .lt-tab {
+    height: 32px;
+    padding: 0 12px;
+  }
+  [data-lite] .lt-scope {
+    height: 36px;
+  }
+  [data-lite] .lt-file-row,
+  [data-lite] .lt-commit {
+    height: 40px;
+  }
+}
