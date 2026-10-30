@@ -1,26 +1,31 @@
 // The Lite sidebar's small parts: a status mark, a face, a session row, a
-// navigation row. Visuals live in app/lite/lite.css under [data-lite].
+// navigation row. Visuals live in app/lite/lite.css under [data-lite]; the
+// failed mark's, with Needs you's, in components/lite/needs/needs.css.
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Check } from "lucide-react";
+import { ArrowUpRight, Check, X } from "lucide-react";
 import { AvatarImg } from "../../lib/avatarCache";
 import { liteSessionPath } from "../../lib/inboxRouting";
 import type { LiteMark } from "../../lib/lite/sidebarModel";
+import { useLiteSessionMark } from "../../lib/lite/useLiteSidebar";
+import "./needs/needs.css";
 
 const MARK_WORDS: Record<NonNullable<LiteMark>, string> = {
   working: "Working",
   needs: "Needs you",
+  error: "Failed",
   waiting: "Waiting on its owner",
   done: "Done, not read yet",
 };
 
 /** One row's status: a still blue ring (working), an amber diamond (needs
- *  you), a hollow diamond (a teammate's, waiting on them: `label` names who),
- *  an emerald check (done, not read yet), or an empty slot. */
-export function LiteStatusMark({ mark, label }: { mark: LiteMark; label?: string }) {
+ *  you), a red cross (failed: stuck on something the person must fix), a
+ *  hollow diamond (a teammate's, waiting on them: `label` names who), an
+ *  emerald check (done, not read yet), or an empty slot. */
+export function LiteStatusMark({ mark, label }: { mark: LiteMark; label?: string | null }) {
   return (
     <span className="lt-mark" data-mark={mark ?? undefined} role={mark ? "img" : undefined} aria-label={mark ? label ?? MARK_WORDS[mark] : undefined} aria-hidden={mark ? undefined : true}>
-      {mark === "done" ? <Check aria-hidden /> : null}
+      {mark === "done" ? <Check aria-hidden /> : mark === "error" ? <X aria-hidden /> : null}
     </span>
   );
 }
@@ -40,14 +45,15 @@ export function LiteAvatar({ name, image, size = 20 }: { name: string; image?: s
  * One session, one line: its mark, its title, and one fact in the meta slot:
  * the machine a live row runs on (the viewer's own sessions, when they have
  * more than one), else its age. On hover that slot gives way to "Open in
- * classic". A row that needs the person (or holds an unread result) keeps
- * full contrast; the rest recede, a teammate's waiting row among them.
- * `detail` is a second name, for a wide list (an ask's session).
+ * classic". The mark is the session's one mark (useLiteSessionMark), which
+ * `mark` may only restate. A row that needs the person, has failed or holds
+ * an unread result keeps full contrast; the rest recede, a teammate's
+ * waiting row among them. `detail` is a second name, for a wide list.
  */
-export function LiteSessionRow({ id, title, mark, markLabel, machine, detail, age, active, nested }: {
+export function LiteSessionRow({ id, title, mark: given, markLabel, machine, detail, age, active, nested }: {
   id: string;
   title: string;
-  mark: LiteMark;
+  mark?: LiteMark;
   markLabel?: string;
   machine?: string | null;
   detail?: string | null;
@@ -55,8 +61,11 @@ export function LiteSessionRow({ id, title, mark, markLabel, machine, detail, ag
   active: boolean;
   nested?: boolean;
 }) {
-  const attention = mark === "needs" || mark === "done";
-  const showMachine = !!machine && (mark === "working" || mark === "needs");
+  const own = useLiteSessionMark(id);
+  const mark = given === undefined ? own.mark : given;
+  const label = markLabel ?? (mark === own.mark ? own.label : null);
+  const attention = mark === "needs" || mark === "error" || mark === "done";
+  const showMachine = !!machine && (mark === "working" || mark === "needs" || mark === "error");
   return (
     <div className="lt-rowwrap">
       <Link
@@ -68,7 +77,7 @@ export function LiteSessionRow({ id, title, mark, markLabel, machine, detail, ag
         aria-current={active ? "page" : undefined}
         title={machine ? `${title} · runs on ${machine}` : title}
       >
-        <LiteStatusMark mark={mark} label={markLabel} />
+        <LiteStatusMark mark={mark} label={label} />
         <span className="lt-row-title">{title}</span>
         {detail ? <span className="lt-meta lt-detail">{detail}</span> : null}
         <span className="lt-meta lt-time">{showMachine ? <span className="lt-machine">{machine}</span> : age}</span>

@@ -1,0 +1,450 @@
+/* Codecast Lite's collaboration surfaces: the faces and chips on a session's
+   header, the share popover, the small dialogs (hand to a teammate, message
+   another agent) and the team page. Scoped under [data-lite] like the rest of
+   Lite (app/lite/lite.css holds the tokens); a surface that portals out of
+   the shell carries the attribute itself. Nothing here animates forever, and
+   no row is its own compositor layer (the typing budget). */
+
+/* ── Faces ──────────────────────────────────────────────────────────────── */
+
+[data-lite] .lt-faces {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+[data-lite] .lt-faces > * {
+  margin-left: -5px;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 1.5px var(--lt-bg);
+}
+[data-lite] .lt-faces > *:first-child {
+  margin-left: 0;
+}
+[data-lite] .lt-faces-more {
+  display: inline-grid;
+  place-items: center;
+  border-radius: 9999px;
+  background: var(--lt-hover);
+  color: var(--lt-text-2);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Header chips ───────────────────────────────────────────────────────── */
+
+[data-lite] .lt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  max-width: 200px;
+  padding: 0 8px;
+  flex-shrink: 1;
+  min-width: 0;
+  border-radius: 9999px;
+  border: 1px solid var(--lt-border);
+  font-size: 12px;
+  color: var(--lt-text-2);
+  white-space: nowrap;
+  transition: background-color 120ms, color 120ms;
+}
+[data-lite] .lt-chip > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-lite] .lt-chip svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  color: var(--lt-text-3);
+}
+[data-lite] a.lt-chip:hover {
+  background: var(--lt-hover);
+  color: var(--lt-text);
+}
+/* Someone else forming words: no border, the quietest thing on the bar. */
+[data-lite] .lt-chip[data-chip="typing"] {
+  border-color: transparent;
+  color: var(--lt-text-3);
+  padding-left: 2px;
+}
+[data-lite] .lt-chip-owner {
+  color: var(--lt-text-3);
+}
+
+/* The menu's owners line and talked-with rows. */
+[data-lite] .lt-menu-owners {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 2px 8px 6px;
+  font-size: 13px;
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-menu-owners > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-lite] .lt-menu-item > .lt-menu-meta {
+  margin-left: auto;
+  padding-left: 12px;
+  font-size: 12px;
+  color: var(--lt-text-3);
+  white-space: nowrap;
+}
+[data-lite] .lt-menu-item > .lt-menu-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Share popover ──────────────────────────────────────────────────────── */
+
+[data-lite].lt-pop {
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  padding: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-raised);
+  color: var(--lt-text);
+  box-shadow: var(--lt-shadow-float);
+  font-family: var(--lt-font);
+}
+[data-lite] .lt-pop-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px 4px;
+}
+[data-lite] .lt-pop-head > b {
+  font-size: 14px;
+  font-weight: 600;
+}
+[data-lite] .lt-pop-head > span {
+  font-size: 12px;
+  color: var(--lt-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-lite] .lt-pop-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 12px;
+}
+[data-lite] .lt-pop-section + .lt-pop-section {
+  border-top: 1px solid var(--lt-border);
+}
+[data-lite] .lt-pop-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-pop-label b {
+  font-weight: 500;
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-pop-foot {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--lt-border);
+  background: var(--lt-sidebar);
+}
+[data-lite] .lt-pop-foot .lt-btn {
+  flex: 1;
+  justify-content: center;
+}
+
+/* A segmented choice: one row of options, the chosen one raised. */
+[data-lite] .lt-seg {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--lt-hover);
+}
+[data-lite] .lt-seg > button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--lt-text-2);
+  transition: background-color 120ms, color 120ms;
+}
+[data-lite] .lt-seg > button:hover:not(:disabled) {
+  color: var(--lt-text);
+}
+[data-lite] .lt-seg > button[aria-pressed="true"] {
+  background: var(--lt-raised);
+  color: var(--lt-text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), inset 0 0 0 1px var(--lt-border);
+}
+[data-lite] .lt-seg > button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+[data-lite] .lt-seg svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ── Dialogs ────────────────────────────────────────────────────────────── */
+
+[data-lite].lt-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: var(--lt-backdrop);
+}
+[data-lite].lt-dialog {
+  position: fixed;
+  left: 50%;
+  top: min(16vh, 120px);
+  z-index: 301;
+  display: flex;
+  flex-direction: column;
+  width: min(480px, calc(100vw - 24px));
+  max-height: min(72vh, 560px);
+  transform: translateX(-50%);
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-raised);
+  color: var(--lt-text);
+  box-shadow: var(--lt-shadow-float);
+  outline: none;
+}
+@media (max-width: 639px) {
+  [data-lite].lt-dialog {
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 24px);
+  }
+}
+[data-lite] .lt-dialog-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px 10px;
+  flex-shrink: 0;
+}
+[data-lite] .lt-dialog-head h2 {
+  font-size: 15px;
+  font-weight: 600;
+}
+[data-lite] .lt-dialog-head > span {
+  font-size: 12px;
+  color: var(--lt-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-lite] .lt-dialog-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  margin: 0 12px;
+  padding: 0 10px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-bg);
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-dialog-search svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+[data-lite] .lt-dialog-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-size: 14px;
+  color: var(--lt-text);
+}
+[data-lite] .lt-dialog-search input::placeholder {
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-dialog [cmdk-list] {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  scrollbar-width: thin;
+}
+[data-lite] .lt-dialog [cmdk-group-heading] {
+  padding: 8px 8px 4px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-dialog [cmdk-item] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: var(--lt-text-2);
+  cursor: default;
+}
+[data-lite] .lt-dialog [cmdk-item][data-selected="true"] {
+  background: var(--lt-hover);
+  color: var(--lt-text);
+}
+[data-lite] .lt-dialog [cmdk-item][aria-checked="true"] {
+  color: var(--lt-text);
+  font-weight: 500;
+}
+[data-lite] .lt-dialog [cmdk-item] > svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-dialog [cmdk-item] > svg.lt-picked {
+  color: var(--lt-accent);
+}
+[data-lite] .lt-dialog [cmdk-empty] {
+  padding: 20px 8px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 16px 4px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--lt-border);
+  font-size: 12px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-dialog-field textarea {
+  width: 100%;
+  min-height: 64px;
+  max-height: 160px;
+  padding: 8px 10px;
+  resize: vertical;
+  border-radius: 8px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-bg);
+  color: var(--lt-text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  outline: none;
+}
+[data-lite] .lt-dialog-field textarea:focus {
+  border-color: var(--lt-accent);
+}
+[data-lite] .lt-dialog-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--lt-text-2);
+  cursor: pointer;
+  user-select: none;
+}
+[data-lite] .lt-dialog-check input {
+  accent-color: var(--lt-accent);
+}
+[data-lite] .lt-dialog-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--lt-border);
+}
+[data-lite] .lt-dialog-foot .lt-btn {
+  gap: 6px;
+}
+[data-lite] .lt-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  min-width: 0;
+  margin-left: auto;
+  padding: 0 12px;
+  border-radius: 6px;
+  background: var(--lt-accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: filter 120ms;
+}
+[data-lite] .lt-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+[data-lite] .lt-btn-primary:disabled {
+  background: var(--lt-hover);
+  color: var(--lt-text-3);
+  cursor: not-allowed;
+}
+[data-lite] .lt-btn-primary > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Team page ──────────────────────────────────────────────────────────── */
+
+[data-lite] .lt-team-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+[data-lite] .lt-select {
+  height: 28px;
+  max-width: 180px;
+  padding: 0 24px 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-raised);
+  color: var(--lt-text-2);
+  font-size: 13px;
+  text-overflow: ellipsis;
+}
+[data-lite] .lt-select:hover {
+  color: var(--lt-text);
+}
+/* The team chat keeps its own look inside; only its ground follows Lite. */
+[data-lite] .lt-team-chat.ch-shell {
+  background: var(--lt-bg);
+  flex: 1;
+  height: auto;
+}
+[data-lite] .lt-team-feed {
+  padding-top: 12px;
+  padding-bottom: 32px;
+}
