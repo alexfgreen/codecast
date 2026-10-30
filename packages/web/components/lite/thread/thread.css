@@ -1,0 +1,615 @@
+/* Codecast Lite's conversation: the thread, its rows, the composer under it
+   and the new-session hero. Scoped under [data-lite] like the rest of Lite
+   (app/lite/lite.css owns the tokens). Rows hold still: no row is its own
+   compositor layer (rows are placed by `top`, never a transform) and no row
+   runs an infinite animation (the typing budget, scripts/typing-guard.sh). */
+
+[data-lite] {
+  --lt-th-bubble: rgba(0, 0, 0, 0.045);
+  --lt-th-code: rgba(0, 0, 0, 0.035);
+  --lt-th-composer-shadow: 0 6px 24px -10px rgba(0, 0, 0, 0.16), 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.dark [data-lite] {
+  --lt-th-bubble: rgba(255, 255, 255, 0.065);
+  --lt-th-code: rgba(255, 255, 255, 0.04);
+  /* Shadows read as smudges on a dark page; the border carries the edge. */
+  --lt-th-composer-shadow: none;
+}
+
+/* ── The column ─────────────────────────────────────────────────────────── */
+
+[data-lite] .lt-thread {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+[data-lite] .lt-th-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  /* The virtualizer holds the bottom; the browser's own anchoring would
+     fight it for scrollTop. */
+  overflow-anchor: none;
+}
+[data-lite] .lt-th-fill {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 100%;
+}
+[data-lite] .lt-th-sizer {
+  position: relative;
+  width: 100%;
+  flex: 0 0 auto;
+}
+/* One row's column: the content width, centred, the page's gutter. */
+[data-lite] .lt-th-row {
+  width: 100%;
+  max-width: var(--lt-content-w);
+  margin: 0 auto;
+  padding: 0 16px;
+}
+[data-lite] .lt-th-gap {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+[data-lite] .lt-th-tight {
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+
+[data-lite] .lt-th-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 0;
+  font-size: 12px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-th-empty {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--lt-text-3);
+}
+
+/* ── A person's words ───────────────────────────────────────────────────── */
+
+[data-lite] .lt-th-user {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+[data-lite] .lt-th-author {
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-th-bubble {
+  max-width: 80%;
+  min-width: 0;
+  padding: 8px 14px;
+  border-radius: 16px;
+  background: var(--lt-th-bubble);
+  color: var(--lt-text);
+  font-size: 14px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+[data-lite] .lt-th-bubble[data-pending] {
+  opacity: 0.7;
+}
+/* A long prompt rests at a few lines; "Show more" opens it. */
+[data-lite] .lt-th-bubble-body[data-clamped] {
+  max-height: 9.5em;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent);
+  mask-image: linear-gradient(to bottom, #000 70%, transparent);
+}
+[data-lite] .lt-th-joint + .lt-th-joint {
+  margin-top: 8px;
+}
+[data-lite] .lt-th-joint-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-th-quote {
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-th-more {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-th-more:hover {
+  color: var(--lt-text);
+}
+[data-lite] .lt-th-images {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 80%;
+}
+
+/* ── The agent's words ──────────────────────────────────────────────────── */
+
+[data-lite] .lt-th-text {
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--lt-text);
+  overflow-wrap: anywhere;
+}
+[data-lite] .lt-th-text[data-error] {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--lt-error) 35%, transparent);
+  background: color-mix(in srgb, var(--lt-error) 6%, transparent);
+}
+
+/* ── One line: a fold, a run, a call, a thought ─────────────────────────── */
+
+[data-lite] .lt-th-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 26px;
+  padding: 0 6px;
+  margin-left: -6px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--lt-text-3);
+  text-align: left;
+  transition: background-color 100ms, color 100ms;
+}
+[data-lite] .lt-th-line:hover {
+  background: var(--lt-hover);
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-th-line[aria-expanded="true"] {
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-th-line[data-error] {
+  color: var(--lt-error);
+}
+[data-lite] .lt-th-line > svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+[data-lite] .lt-th-line .lt-th-chev {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: transform 120ms;
+}
+[data-lite] .lt-th-line[aria-expanded="true"] .lt-th-chev {
+  transform: rotate(90deg);
+}
+[data-lite] .lt-th-label {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-lite] .lt-th-detail {
+  flex-shrink: 2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  opacity: 0.8;
+}
+[data-lite] .lt-th-hint {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  opacity: 0.85;
+}
+/* The time sits at the line's end and shows on hover; a finger has no hover. */
+[data-lite] .lt-th-time {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding-left: 8px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--lt-text-3);
+  opacity: 0;
+  transition: opacity 100ms;
+}
+[data-lite] .lt-th-line:hover .lt-th-time,
+[data-lite] .lt-th-line:focus-visible .lt-th-time {
+  opacity: 1;
+}
+@media (pointer: coarse) {
+  [data-lite] .lt-th-time {
+    display: none;
+  }
+}
+
+/* An open call's body, under its line. */
+[data-lite] .lt-th-body {
+  margin: 4px 0 8px 22px;
+  min-width: 0;
+}
+[data-lite] .lt-th-body-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+[data-lite] .lt-th-pre {
+  max-height: 320px;
+  margin: 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: 8px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-th-code);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--lt-text-2);
+  scrollbar-width: thin;
+}
+[data-lite] .lt-th-pre[data-error] {
+  color: var(--lt-error);
+}
+[data-lite] .lt-th-cmd {
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--lt-text-2);
+  overflow-wrap: anywhere;
+}
+[data-lite] .lt-th-thought {
+  margin: 2px 0 6px 22px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--lt-text-3);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* A reused classic card (a question, a todo list, a `cast` command). */
+[data-lite] .lt-th-card {
+  min-width: 0;
+}
+
+/* ── Dividers and the working line ──────────────────────────────────────── */
+
+[data-lite] .lt-th-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-th-divider::before,
+[data-lite] .lt-th-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--lt-border);
+}
+[data-lite] .lt-th-divider[data-tone="interrupt"] {
+  color: var(--lt-needs-text);
+}
+
+[data-lite] .lt-th-working {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  font-size: 13px;
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-th-working .lt-th-live {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--lt-text-3);
+}
+
+/* ── Jump to latest ─────────────────────────────────────────────────────── */
+
+[data-lite] .lt-th-jump {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  width: max-content;
+  margin: 0 auto;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-raised);
+  box-shadow: var(--lt-shadow-float);
+  font-size: 12px;
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-th-jump:hover {
+  color: var(--lt-text);
+}
+[data-lite] .lt-th-jump svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ── The composer ───────────────────────────────────────────────────────── */
+
+/* The composer column: the thread's width, centred, a little above the
+   bottom edge. The list ends where it starts, so the last row always clears
+   it. */
+[data-lite] .lt-composer {
+  position: relative;
+  flex-shrink: 0;
+  width: 100%;
+  max-width: var(--lt-content-w);
+  margin: 0 auto;
+  padding: 0 16px max(12px, env(safe-area-inset-bottom, 0px));
+}
+/* The thread fades out just above the composer, so the card floats. */
+[data-lite] .lt-composer::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 16px;
+  background: linear-gradient(to bottom, transparent, var(--lt-bg));
+  pointer-events: none;
+}
+/* MessageInput's own field becomes Lite's card: rounded, Lite's border and
+   surface, a soft shadow in light only. MessageInput itself is reused whole
+   (and stays under the typing budget); only its frame is restyled. */
+[data-lite] .lt-composer [data-sv-composer] form > div:first-child {
+  border-radius: 16px;
+  border-color: var(--lt-border);
+  background: var(--lt-raised);
+  box-shadow: var(--lt-th-composer-shadow);
+}
+[data-lite] .lt-composer [data-sv-composer] form > div:first-child:focus-within {
+  border-color: color-mix(in srgb, var(--lt-accent) 45%, var(--lt-border));
+}
+[data-lite] .lt-readonly {
+  padding: 10px 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--lt-text-3);
+}
+
+/* A `cast decide` ask docked above the composer. */
+[data-lite] .lt-decide {
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--lt-needs) 40%, var(--lt-border));
+  background: var(--lt-raised);
+}
+[data-lite] .lt-decide-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--lt-text);
+}
+[data-lite] .lt-decide-q {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+[data-lite] .lt-decide-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+[data-lite] .lt-decide-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 28px;
+  padding: 0 10px 0 6px;
+  border-radius: 6px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-bg);
+  font-size: 13px;
+  color: var(--lt-text);
+  text-align: left;
+}
+[data-lite] .lt-decide-opt:hover {
+  background: var(--lt-hover);
+}
+[data-lite] .lt-decide-opt > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-lite] .lt-decide-other {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+[data-lite] .lt-decide-other input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-bg);
+  font-size: 13px;
+  color: var(--lt-text);
+  outline: none;
+}
+[data-lite] .lt-decide-other input:focus {
+  border-color: color-mix(in srgb, var(--lt-accent) 45%, var(--lt-border));
+}
+
+/* ── New session: the hero ──────────────────────────────────────────────── */
+
+[data-lite] .lt-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: min(14vh, 112px);
+  padding-bottom: 32px;
+}
+[data-lite] .lt-hero h1 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-align: center;
+  color: var(--lt-text);
+}
+[data-lite] .lt-hero-card {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px 6px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-raised);
+  box-shadow: var(--lt-th-composer-shadow);
+  transition: border-color 120ms;
+}
+[data-lite] .lt-hero-card:focus-within {
+  border-color: color-mix(in srgb, var(--lt-accent) 45%, var(--lt-border));
+}
+[data-lite] .lt-hero-card textarea {
+  min-height: 3.5rem;
+  font-size: 14px;
+  color: var(--lt-text);
+}
+[data-lite] .lt-hero-card textarea::placeholder {
+  color: var(--lt-text-3);
+}
+[data-lite] .lt-hero-foot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding-top: 4px;
+}
+[data-lite] .lt-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 200px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--lt-text-2);
+  white-space: nowrap;
+}
+[data-lite] .lt-pick:hover,
+[data-lite] .lt-pick[data-state="open"] {
+  background: var(--lt-hover);
+  color: var(--lt-text);
+}
+[data-lite] .lt-pick svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+[data-lite] .lt-pick > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The folder picker (ProjectPathPicker), quiet in the foot. */
+[data-lite] .lt-hero-path {
+  flex: 1 1 140px;
+  min-width: 0;
+  max-width: 280px;
+}
+[data-lite] .lt-hero-path input {
+  height: 28px;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-color: transparent;
+  background: transparent;
+  font-size: 12px;
+  color: var(--lt-text-2);
+}
+[data-lite] .lt-hero-path input:hover,
+[data-lite] .lt-hero-path input:focus {
+  border-color: var(--lt-border);
+  background: var(--lt-bg);
+}
+[data-lite] .lt-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: var(--lt-text);
+  color: var(--lt-bg);
+  transition: opacity 120ms;
+}
+[data-lite] .lt-send:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+[data-lite] .lt-send svg {
+  width: 15px;
+  height: 15px;
+}
+[data-lite] .lt-hero-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 20px;
+}
+[data-lite] .lt-hero-recent h2 {
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lt-text-3);
+}
+
+@media (max-width: 767px) {
+  [data-lite] .lt-th-bubble,
+  [data-lite] .lt-th-images {
+    max-width: 88%;
+  }
+  [data-lite] .lt-th-line {
+    min-height: 32px;
+  }
+}
