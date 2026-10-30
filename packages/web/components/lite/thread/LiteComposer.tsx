@@ -14,11 +14,24 @@
 //
 // On a phone the composer rests as one line (MessageInput's own resting
 // pill) until it is tapped; wider, it is the full box.
+//
+// While it draws its text box, the composer is reachable from outside it
+// (lib/lite/composerHandle): the header's "Message another agent…" adds a
+// reference to the box through MessageInput's own populate hook, after any
+// draft already there, and puts the caret at its end.
+//
+// While it draws its box it also says who is in it (LiteComposerPresence):
+// the compose:<id> presence row the classic composer writes, so a teammate's
+// header (Lite's typing chip, classic's strip) sees the viewer typing here.
 import "./thread.css";
-import { useCallback, useMemo } from "react";
+import { memo, useCallback, useMemo, useRef } from "react";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
+import { useConvexAuth } from "convex/react";
 import { useShallow } from "zustand/react/shallow";
-import { useInboxStore } from "../../../store/inboxStore";
+import { withoutSecrets } from "@codecast/shared/contracts/secretShapes";
+import { isConvexId, useInboxStore } from "../../../store/inboxStore";
+import { useDocPresence } from "../../../hooks/useDocPresence";
+import { composeDocId } from "../../../lib/composerPresence";
 import { useLiteLayout } from "../../../lib/lite/liteLayout";
 import { composerAgentStatus, useManagedSessionFields, useSessionEscape } from "../../../hooks/useSessionComposerControls";
 import { usePermissionModeSwitch } from "../../../hooks/usePermissionModeSwitch";
@@ -26,6 +39,8 @@ import { usePendingPermissions } from "../../../hooks/useSyncPendingPermissions"
 import { usePendingDecisionItems } from "../../../hooks/useDecisionQueue";
 import { animatedHideSession } from "../../../store/undoActions";
 import { useLiteSessionAccess } from "../../../lib/lite/threadAccess";
+import { registerLiteComposerHandle } from "../../../lib/lite/composerHandle";
+import { useWatchEffect } from "../../../hooks/useWatchEffect";
 import type { ConversationData } from "../../conversation/types";
 import { MessageInput } from "../../MessageInput";
 import { HeaderModelControl } from "../../SessionControlMenu";
@@ -72,6 +87,38 @@ export function LiteComposer({ sessionId }: { sessionId: string }) {
   const decisions = usePendingDecisionItems(sessionId);
   const decision = decisions[0] ?? null;
 
+  // The handle others fill the box through, held while the box is drawn.
+  const populateRef = useRef<((text: string, opts?: { append?: boolean }) => void) | null>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const drawsBox = access.known && !access.shared && access.canSend && permissions.length === 0;
+  useWatchEffect(() => {
+    if (!drawsBox) return;
+    // The caret at the end, after MessageInput's own select-all lands.
+    const focusBox = () => {
+      const el = boxRef.current?.querySelector("textarea");
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    };
+    return registerLiteComposerHandle(sessionId, {
+      populate: (text) => {
+        // After the draft already in the box, never over it; the text keeps
+        // its trailing space, so the person types straight on.
+        const el = boxRef.current?.querySelector("textarea");
+        if (el) {
+          const draft = el.value.replace(/\s+$/, "");
+          populateRef.current?.(draft ? `${draft}\n\n${text}` : text);
+        } else {
+          // No box drawn (the phone's resting line): MessageInput's own
+          // append keeps whatever draft it holds.
+          populateRef.current?.(text, { append: true });
+        }
+        setTimeout(focusBox, 0);
+      },
+      focus: focusBox,
+    });
+  }, [sessionId, drawsBox]);
+
   const sessionControl = useMemo(() => (
     <HeaderModelControl
       variant="composer"
@@ -101,8 +148,9 @@ export function LiteComposer({ sessionId }: { sessionId: string }) {
   }
 
   return (
-    <div className="lt-composer">
+    <div className="lt-composer" ref={boxRef}>
       {decision && <LiteDecisionCard key={decision.key} item={decision} more={decisions.length - 1} />}
+      {drawsBox && <LiteComposerPresence sessionId={sessionId} announce={!access.isOwner} />}
       {permissions.length > 0 ? (
         <PermissionStack
           permissions={permissions as any}
@@ -130,6 +178,7 @@ export function LiteComposer({ sessionId }: { sessionId: string }) {
           onSendEscape={access.isOwner ? onEscape : undefined}
           onSendAndDismiss={stash}
           sessionControl={sessionControl}
+          onPopulateInput={populateRef}
           composerPlaceholder={access.isOwner ? undefined : `Message ${access.ownerFirstName ? `${access.ownerFirstName}'s` : "their"} agent`}
           // A blocking ask takes focus first, so its digits answer.
           autoFocusInput={!decision?.blocking}
@@ -138,6 +187,28 @@ export function LiteComposer({ sessionId }: { sessionId: string }) {
     </div>
   );
 }
+
+/**
+ * This box's presence on the session: the same compose:<id> row the classic
+ * composers write (CollabComposer's useComposerPresence), with the draft as
+ * the store holds it (the box writes it through on its own pause, never per
+ * key) and any credential in it masked. The owner announces once someone
+ * else is in the box; a teammate typing into the owner's session announces
+ * at once (`announce`), as the classic collaborator's box does. Draws
+ * nothing: the header's typing chip shows the others.
+ */
+const LiteComposerPresence = memo(function LiteComposerPresence({ sessionId, announce }: { sessionId: string; announce: boolean }) {
+  const { isAuthenticated } = useConvexAuth();
+  const draft = useInboxStore((s) => (s.drafts[sessionId] as { draft_message?: string } | undefined)?.draft_message ?? "");
+  const preview = useMemo(() => withoutSecrets(draft), [draft]);
+  useDocPresence({
+    docId: composeDocId(sessionId),
+    draftText: preview,
+    enabled: isAuthenticated && isConvexId(sessionId),
+    forceBroadcast: announce,
+  });
+  return null;
+});
 
 /** A share-link reader's composer: the classic collaboration composer, fed
  *  the few conversation fields it reads (never the whole row, which every

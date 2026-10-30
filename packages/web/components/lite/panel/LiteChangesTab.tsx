@@ -189,6 +189,7 @@ export function LiteChangesTab({ sessionId }: { sessionId: string }) {
           {files.map((file) => (
             <LiteFileRow
               key={file.key}
+              sessionId={sessionId}
               file={file}
               path={displayPath(file.path, roots)}
               open={open.has(file.key)}
@@ -213,9 +214,11 @@ export function LiteChangesTab({ sessionId }: { sessionId: string }) {
   );
 }
 
-/** One changed file: its row, and its diff under it while open. Held by
- *  memo, so a streamed reply that changes no file redraws no row. */
-const LiteFileRow = memo(function LiteFileRow({ file, path, open, onToggle, register }: {
+/** One changed file: its row, and its diff under it while open (a line
+ *  there takes a shared comment). Held by memo, so a streamed reply that
+ *  changes no file redraws no row. */
+const LiteFileRow = memo(function LiteFileRow({ sessionId, file, path, open, onToggle, register }: {
+  sessionId: string;
   file: PanelFile;
   /** The path as the person reads it (displayPath). */
   path: string;
@@ -236,7 +239,7 @@ const LiteFileRow = memo(function LiteFileRow({ file, path, open, onToggle, regi
       </button>
       {open && (
         <div className="lt-file-diff">
-          <LiteFileDiff file={file} />
+          <LiteFileDiff file={file} sessionId={sessionId} />
         </div>
       )}
     </div>
